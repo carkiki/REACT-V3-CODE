@@ -1040,6 +1040,8 @@ namespace ReactCRM.UI.Time
 
                 return;
 
+            int entryId = -1;  // Declare outside try block for error logging
+
 
 
             try
@@ -1058,7 +1060,7 @@ namespace ReactCRM.UI.Time
 
 
 
-                int entryId = int.Parse(row.Cells["EntryId"].Value.ToString());
+                entryId = int.Parse(row.Cells["EntryId"].Value.ToString());
 
                 var entry = timeEntryRepository.GetById(entryId);
 
