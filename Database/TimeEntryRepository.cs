@@ -169,7 +169,8 @@ namespace ReactCRM.Database
 
             string sql = @"
                 UPDATE TimeEntries
-                SET ClockIn = @clockIn,
+                SET Date = @date,
+                    ClockIn = @clockIn,
                     ClockOut = @clockOut,
                     BreakMinutes = @breakMinutes,
                     EntryType = @entryType,
@@ -182,6 +183,7 @@ namespace ReactCRM.Database
 
             using var cmd = new SqliteCommand(sql, connection);
             cmd.Parameters.AddWithValue("@id", entry.Id);
+            cmd.Parameters.AddWithValue("@date", entry.Date);
             cmd.Parameters.AddWithValue("@clockIn", entry.ClockIn);
             cmd.Parameters.AddWithValue("@clockOut", entry.ClockOut ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("@breakMinutes", entry.BreakMinutes);
