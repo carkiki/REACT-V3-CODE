@@ -1,0 +1,69 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net10.0-windows7.0</TargetFramework>
+
+		<RootNamespace>REACT_CRM</RootNamespace>
+		<Nullable>enable</Nullable>
+		<UseWindowsForms>true</UseWindowsForms>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<ApplicationIcon>logo\NEW REACT LOGO.ico</ApplicationIcon>
+		<GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Folder Include="ClientFiles\" />
+		<Folder Include="Logs\" />
+		<Folder Include="Backups\" />
+		<Folder Include="UI\Fields\" />
+		<Folder Include="UI\Import\" />
+		<Folder Include="UI\Charts\" />
+		<Folder Include="UI\Logs\" />
+		<Folder Include="UI\Search\" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="FirebaseDatabase.net" Version="4.2.0" />
+		<PackageReference Include="System.Management" Version="8.0.0" />
+		<PackageReference Include="itext7" Version="9.4.0" />
+		<PackageReference Include="LiveCharts" Version="0.9.7" />
+		<PackageReference Include="Microsoft.AspNetCore.Http" Version="2.3.0" />
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Data.Sqlite.Core" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3595.46" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+		<PackageReference Include="itext.bouncy-castle-adapter" Version="9.4.0" />
+		<PackageReference Include="SQLitePCLRaw.bundle_sqlcipher" Version="1.1.14" />
+
+	</ItemGroup>
+
+	<ItemGroup>
+
+		<COMReference Include="WIA">
+
+			<WrapperTool>tlbimp</WrapperTool>
+
+			<VersionMinor>0</VersionMinor>
+
+			<VersionMajor>1</VersionMajor>
+
+			<Guid>94a0e92d-43c0-494e-ac29-fd45948a5221</Guid>
+
+			<Lcid>0</Lcid>
+
+			<Isolated>false</Isolated>
+
+			<EmbedInteropTypes>false</EmbedInteropTypes>
+
+		</COMReference>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Include="logo\NEW REACT LOGO.ico" />
+	</ItemGroup>
+	<ItemGroup>
+		<Folder Include="Templates\" />
+	</ItemGroup>
+
+</Project>

@@ -1,0 +1,1489 @@
+﻿using System;
+using System.Drawing;
+using System.Windows.Forms;
+using ReactCRM.Database;
+using ReactCRM.Models;
+
+using ReactCRM.Plugins;
+
+using ReactCRM.Services;
+
+using ReactCRM.UI.Charts;
+
+using ReactCRM.UI.Clients;
+
+using ReactCRM.UI.Fields;
+
+using ReactCRM.UI.Forms;
+
+using ReactCRM.UI.Import;
+
+using ReactCRM.UI.Logs;
+
+using ReactCRM.UI.Search;
+
+using ReactCRM.UI.Templates;
+
+using ReactCRM.UI.Workers;
+
+using ReactCRM.UI.Components;
+using ReactCRM.UI.Time;
+using ReactCRM.UI.Tasks;
+
+namespace ReactCRM.UI.Dashboard
+{
+    public partial class DashboardForm : Form
+    {
+        private Panel panelSidebar;
+        private Panel panelHeader;
+        private Panel panelMain;
+        private Label lblWelcome;
+        private Label lblRole;
+        private Button btnClients;
+        private Button btnImport;
+        private Button btnImportDatabase;
+        private Button btnCustomFields;
+        private Button btnAdvancedSearch;
+        private Button btnCharts;
+        private Button btnLogs;
+        private Button btnBackup;
+        private Button btnWorkers;
+        private Button btnLogout;
+        private Panel panelStats;
+        private Panel panelChangelog;
+        private Button btnToggleChangelog;
+        private RichTextBox txtChangelog;
+        private bool changelogExpanded = false;
+        private System.Windows.Forms.Timer refreshTimer;
+        private bool sidebarCollapsed = false;
+        private Button btnToggleSidebar;
+        private Panel panelMenuContainer;
+        private System.Windows.Forms.Timer sidebarAnimationTimer;
+        private int targetSidebarWidth;
+        private const int ANIMATION_STEP = 20;
+        private Button btnNotifications;
+        private NotificationPanel notificationPanel;
+        private bool notificationPanelVisible = false;
+        private Label lblNotificationBadge;
+        private Button btnChat;
+        private TeamChatPanel chatPanel;
+        private bool chatPanelVisible = false;
+        private Label lblChatBadge;
+        private Button btnDebugConsole;
+        private BirthdayWidget birthdayWidget;
+        private TaskListWidget taskWidget;
+
+        // Menu item icons mapping (Unicode symbols)
+        private Dictionary<string, string> menuIcons = new Dictionary<string, string>
+        {
+            { "Clients", "👥" },
+            { "Time Clock", "⏰" },
+            { "Import CSV", "📥" },
+            { "Export CSV", "📤" },
+            { "Import Database", "💾" },
+            { "Custom Fields", "🔧" },
+            { "Advanced Search", "🔍" },
+            { "Analytics", "📊" },
+            { "Audit Logs", "📋" },
+            { "Backup", "💾" },
+            { "Manage Workers", "👷" },
+            { "PDF Templates", "📄" },
+            { "Plugins", "🔌" },
+            { "Dashboard", "🏠" }
+        };
+
+        public DashboardForm()
+        {
+            InitializeComponent();
+            // Initialize menu config for current user
+            MenuConfigService.Instance.Initialize(AuthService.Instance.GetCurrentUserId());
+
+            // Ensure Time Clock menu item exists for all users (migration for existing users)
+            MenuConfigService.Instance.EnsureMenuItemExists("Time Clock", 2);
+
+            // Ensure Export CSV menu item exists for all users
+            MenuConfigService.Instance.EnsureMenuItemExists("Export CSV", 4);
+
+            // Ensure Plugins menu item exists for all users
+
+            MenuConfigService.Instance.EnsureMenuItemExists("Plugins", 10);
+
+            // Load plugins from /plugins/ directory with auto-start enabled
+            PluginManager.Instance.LoadPlugins(executeAutoStart: true);
+
+            // DIAGNOSTIC: Show what menu items are loaded
+            var menuItems = MenuConfigService.Instance.GetAllMenuItems();
+            var visibleItems = MenuConfigService.Instance.GetVisibleMenuItems();
+            string diagnostic = $"=== MENU DIAGNOSTIC ===\n";
+            diagnostic += $"Usuario: {AuthService.Instance.GetCurrentUsername()}\n";
+            diagnostic += $"Rol: {AuthService.Instance.GetCurrentUserRole()}\n";
+            diagnostic += $"User ID: {AuthService.Instance.GetCurrentUserId()}\n\n";
+            diagnostic += $"Total menu items: {menuItems.Count}\n";
+            diagnostic += $"Visible menu items: {visibleItems.Count}\n\n";
+            diagnostic += "Items visibles:\n";
+            foreach (var item in visibleItems)
+            {
+                diagnostic += $"  - {item.Name} (ID: {item.Id}, Order: {item.DisplayOrder}, Visible: {item.IsVisible})\n";
+            }
+            MessageBox.Show(diagnostic, "Menu Diagnostic", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            InitializeCustomComponents();
+            LoadDashboard();
+            SetupPermissions();
+            // Apply application logo
+            LogoService.ApplyLogoToForm(this);
+
+            // Start background notification service
+            BackgroundNotificationService.Instance.ForceRunChecks();
+
+            // Initialize desktop notification service for Windows toast notifications
+            DesktopNotificationService.Instance.Initialize(
+                AuthService.Instance.GetCurrentUserId(),
+                this
+            );
+
+            // Setup form closing event to clean up notification service
+            this.FormClosing += (s, e) =>
+            {
+                if (e.CloseReason == CloseReason.UserClosing)
+                {
+                    DesktopNotificationService.Instance.Dispose();
+                }
+            };
+        }
+
+        private void InitializeComponent()
+        {
+            this.Text = "REACT CRM - Dashboard";
+            this.WindowState = FormWindowState.Maximized;
+            this.MinimumSize = new Size(1024, 768);
+            this.BackColor = UITheme.Colors.BackgroundPrimary;
+            this.Font = UITheme.Fonts.BodyRegular;
+        }
+
+        private void InitializeCustomComponents()
+        {
+            // Initialize sidebar animation timer
+            sidebarAnimationTimer = new System.Windows.Forms.Timer();
+            sidebarAnimationTimer.Interval = 10; // Smooth 60fps-like animation
+            sidebarAnimationTimer.Tick += SidebarAnimationTimer_Tick;
+
+            // Header Panel - Modern Design
+            panelHeader = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = UITheme.Spacing.HeaderHeight,
+                BackColor = UITheme.Colors.HeaderPrimary,
+                Padding = new Padding(UITheme.Spacing.Medium)
+            };
+
+            lblWelcome = new Label
+            {
+                Text = $"Welcome, {AuthService.Instance.GetCurrentUsername()}",
+                Font = UITheme.Fonts.HeaderMedium,
+                ForeColor = UITheme.Colors.TextInverse,
+                Location = new Point(70, 10),
+                AutoSize = true
+            };
+
+            lblRole = new Label
+            {
+                Text = $"Role: {AuthService.Instance.GetCurrentUserRole()}",
+                Font = UITheme.Fonts.BodySmall,
+                ForeColor = UITheme.Colors.TextSecondary,
+                Location = new Point(70, 35),
+                AutoSize = true
+            };
+
+            // Toggle Sidebar Button - Improved Design
+            btnToggleSidebar = new Button
+            {
+                Text = "☰",
+                Font = new Font(UITheme.Fonts.PrimaryFont, 18, FontStyle.Regular),
+                ForeColor = UITheme.Colors.TextInverse,
+                BackColor = Color.Transparent,
+                Anchor = AnchorStyles.Left | AnchorStyles.Top,
+                Size = new Size(50, 50),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Location = new Point(10, 10)
+            };
+            btnToggleSidebar.FlatAppearance.BorderSize = 0;
+            btnToggleSidebar.FlatAppearance.MouseOverBackColor = UITheme.Colors.HeaderHover;
+            btnToggleSidebar.Click += (s, e) => ToggleSidebar();
+
+            // Notification Bell Button
+            btnNotifications = new Button
+            {
+                Text = "🔔",
+                Font = new Font(UITheme.Fonts.PrimaryFont, 18, FontStyle.Regular),
+                ForeColor = UITheme.Colors.TextInverse,
+                BackColor = Color.Transparent,
+                Anchor = AnchorStyles.Right | AnchorStyles.Top,
+                Size = new Size(50, 50),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnNotifications.FlatAppearance.BorderSize = 0;
+            btnNotifications.FlatAppearance.MouseOverBackColor = UITheme.Colors.HeaderHover;
+            btnNotifications.Click += BtnNotifications_Click;
+
+            // Notification badge (unread count)
+            lblNotificationBadge = new Label
+            {
+                Text = "0",
+                BackColor = Color.FromArgb(244, 67, 54),
+                ForeColor = Color.White,
+                Font = new Font(UITheme.Fonts.PrimaryFont, 8, FontStyle.Bold),
+                Size = new Size(18, 18),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Visible = false
+            };
+
+            // Chat Button
+            btnChat = new Button
+            {
+                Text = "💬",
+                Font = new Font(UITheme.Fonts.PrimaryFont, 18, FontStyle.Regular),
+                ForeColor = UITheme.Colors.TextInverse,
+                BackColor = Color.Transparent,
+                Anchor = AnchorStyles.Right | AnchorStyles.Top,
+                Size = new Size(50, 50),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnChat.FlatAppearance.BorderSize = 0;
+            btnChat.FlatAppearance.MouseOverBackColor = UITheme.Colors.HeaderHover;
+            btnChat.Click += BtnChat_Click;
+
+            // Chat badge (new messages count)
+            lblChatBadge = new Label
+            {
+                Text = "0",
+                BackColor = Color.FromArgb(76, 175, 80),
+                ForeColor = Color.White,
+                Font = new Font(UITheme.Fonts.PrimaryFont, 8, FontStyle.Bold),
+                Size = new Size(18, 18),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Visible = false
+            };
+
+            // Debug Console Button
+            btnDebugConsole = new Button
+            {
+                Text = "🐞",
+                Font = new Font(UITheme.Fonts.PrimaryFont, 16, FontStyle.Regular),
+                ForeColor = UITheme.Colors.TextInverse,
+                BackColor = Color.Transparent,
+                Anchor = AnchorStyles.Right | AnchorStyles.Top,
+                Size = new Size(50, 50),
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            btnDebugConsole.FlatAppearance.BorderSize = 0;
+            btnDebugConsole.FlatAppearance.MouseOverBackColor = UITheme.Colors.HeaderHover;
+            btnDebugConsole.Click += BtnDebugConsole_Click;
+
+            // Position notification, chat, and debug buttons
+            this.Resize += (s, e) =>
+            {
+                btnDebugConsole.Location = new Point(this.ClientSize.Width - 190, 10);
+                btnChat.Location = new Point(this.ClientSize.Width - 130, 10);
+                lblChatBadge.Location = new Point(btnChat.Right - 20, btnChat.Top + 5);
+                btnNotifications.Location = new Point(this.ClientSize.Width - 70, 10);
+                lblNotificationBadge.Location = new Point(btnNotifications.Right - 20, btnNotifications.Top + 5);
+            };
+
+            // Create notification panel (initially hidden)
+            notificationPanel = new NotificationPanel
+            {
+                Visible = false,
+                Size = new Size(380, 500)
+            };
+            notificationPanel.SetCurrentUser(AuthService.Instance.GetCurrentUserId());
+            notificationPanel.NotificationClicked += NotificationPanel_NotificationClicked;
+
+            // Position notification panel
+            this.Resize += (s, e) =>
+            {
+                notificationPanel.Location = new Point(
+                    this.ClientSize.Width - notificationPanel.Width - 20,
+                    UITheme.Spacing.HeaderHeight + 10
+                );
+            };
+
+            panelHeader.Controls.Add(lblWelcome);
+            panelHeader.Controls.Add(lblRole);
+            panelHeader.Controls.Add(btnToggleSidebar);
+            panelHeader.Controls.Add(btnDebugConsole);
+            panelHeader.Controls.Add(btnNotifications);
+            panelHeader.Controls.Add(lblNotificationBadge);
+            panelHeader.Controls.Add(btnChat);
+            panelHeader.Controls.Add(lblChatBadge);
+
+            this.Controls.Add(notificationPanel);
+            notificationPanel.BringToFront();
+
+            // Create chat panel (initially hidden)
+            chatPanel = new TeamChatPanel
+            {
+                Visible = false,
+                Size = new Size(450, 600)
+            };
+            chatPanel.MessageSent += ChatPanel_MessageSent;
+
+            // Position chat panel
+            this.Resize += (s, e) =>
+            {
+                chatPanel.Location = new Point(
+                    this.ClientSize.Width - chatPanel.Width - 20,
+                    UITheme.Spacing.HeaderHeight + 10
+                );
+            };
+
+            this.Controls.Add(chatPanel);
+            chatPanel.BringToFront();
+
+            // Update badge counts
+            UpdateNotificationBadge();
+            UpdateChatBadge();
+
+            // Sidebar Panel - Modern Design with Collapsible Support
+            panelSidebar = new Panel
+            {
+                Dock = DockStyle.Left,
+                Width = UITheme.Spacing.SidebarWidth,
+                BackColor = UITheme.Colors.SidebarBackground,
+                AutoScroll = true
+            };
+
+            // Menu Container for easier management
+            panelMenuContainer = new Panel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = false,
+                BackColor = UITheme.Colors.SidebarBackground
+            };
+
+            int buttonY = UITheme.Spacing.Small;
+            int buttonHeight = 50;
+            int buttonSpacing = 5;
+
+            // Get menu items from MenuConfigService
+            var menuItems = MenuConfigService.Instance.GetVisibleMenuItems();
+
+            // Create buttons for each menu item
+            foreach (var menuItem in menuItems)
+            {
+                Button btn = CreateSidebarButton(menuItem.Name, buttonY);
+
+                // Wire up click events based on menu item name
+                btn.Click += (s, e) => HandleMenuItemClick(menuItem.Name);
+
+                panelMenuContainer.Controls.Add(btn);
+                buttonY += buttonHeight + buttonSpacing;
+
+                // Store buttons for later reference
+                StoreButtonReference(menuItem.Name, btn);
+            }
+
+            panelMenuContainer.Height = buttonY;
+            panelSidebar.Controls.Add(panelMenuContainer);
+
+            // Logout Button (at bottom) with icon
+            btnLogout = new Button
+            {
+                Text = "🚪  Logout",
+                Tag = new { FullText = "Logout", Icon = "🚪" },
+                Dock = DockStyle.Bottom,
+                Height = 50,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = UITheme.Colors.ButtonDanger,
+                ForeColor = Color.White,
+                Font = new Font(UITheme.Fonts.PrimaryFont, 10, FontStyle.Regular),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(20, 0, 0, 0),
+                Cursor = Cursors.Hand
+            };
+            btnLogout.FlatAppearance.BorderSize = 0;
+            btnLogout.Click += (s, e) => Logout();
+            panelSidebar.Controls.Add(btnLogout);
+
+            // Main Panel
+            panelMain = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(20)
+            };
+
+            // Stats Panel - Modern cards
+            panelStats = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 200,
+                BackColor = UITheme.Colors.BackgroundPrimary,
+                Padding = new Padding(20)
+            };
+
+            // ===== CREAR PANEL CONTENEDOR PARA WIDGETS =====
+            var panelWidgets = new Panel
+            {
+                Dock = DockStyle.Right,
+                Width = 440,
+                Padding = new Padding(10),
+                BackColor = UITheme.Colors.BackgroundPrimary,
+                AutoScroll = true
+            };
+
+            // Add Birthday Widget
+            birthdayWidget = new BirthdayWidget
+            {
+                Dock = DockStyle.Top,
+                Height = 250,
+                Margin = new Padding(0, 0, 0, 15)
+            };
+            birthdayWidget.LoadBirthdays();
+            birthdayWidget.ClientClicked += BirthdayWidget_ClientClicked;
+            panelWidgets.Controls.Add(birthdayWidget);
+
+            // Add To-Do List Widget
+            taskWidget = new TaskListWidget
+            {
+                Dock = DockStyle.Top,
+                Height = 400,
+                Margin = new Padding(0, 0, 0, 15)
+            };
+            taskWidget.LoadAllTasksGrouped();
+            taskWidget.SetTitle("📋 Team Tasks");
+            taskWidget.AddTaskClicked += TaskWidget_AddTaskClicked;
+            taskWidget.TaskClicked += TaskWidget_TaskClicked;
+            taskWidget.TaskCompleted += (s, task) => RefreshStats();
+            panelWidgets.Controls.Add(taskWidget);
+
+            // Changelog Panel
+            CreateChangelogPanel();
+
+            // Add controls to form
+            this.Controls.Add(panelMain);
+            this.Controls.Add(panelSidebar);
+            this.Controls.Add(panelHeader);
+
+            panelMain.Controls.Add(panelChangelog);
+            panelMain.Controls.Add(panelStats);
+            panelMain.Controls.Add(panelWidgets);
+
+            // Setup refresh timer
+            refreshTimer = new System.Windows.Forms.Timer { Interval = 30000 };
+            // Refresh every 30 seconds
+            refreshTimer.Tick += (s, e) =>
+            {
+                RefreshStats();
+                UpdateNotificationBadge();
+                UpdateChatBadge();
+            };
+            refreshTimer.Start();
+
+            // Setup keyboard shortcut for debug console (Ctrl+Shift+D)
+            this.KeyPreview = true;
+            this.KeyDown += DashboardForm_KeyDown;
+        }
+
+        private void DashboardForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            // Ctrl+Shift+D to toggle debug console
+            if (e.Control && e.Shift && e.KeyCode == Keys.D)
+            {
+                ToggleDebugConsole();
+                e.Handled = true;
+            }
+        }
+
+        private void BtnDebugConsole_Click(object sender, EventArgs e)
+        {
+            ToggleDebugConsole();
+        }
+
+        private void ToggleDebugConsole()
+        {
+            if (DebugConsole.IsVisible())
+            {
+                DebugConsole.Hide();
+                btnDebugConsole.BackColor = Color.Transparent;
+                DebugConsole.Info("Debug console hidden (still logging to file)");
+            }
+            else
+            {
+                DebugConsole.Show();
+                btnDebugConsole.BackColor = Color.FromArgb(50, 255, 255, 255);
+                DebugConsole.Info("Debug console visible");
+                DebugConsole.Info($"User: {AuthService.Instance.GetCurrentUsername()}");
+                DebugConsole.Info($"Role: {AuthService.Instance.GetCurrentUserRole()}");
+                DebugConsole.Info("Press Ctrl+Shift+D to hide console");
+            }
+        }
+
+        private void BtnChat_Click(object sender, EventArgs e)
+        {
+            chatPanelVisible = !chatPanelVisible;
+            chatPanel.Visible = chatPanelVisible;
+
+            if (chatPanelVisible)
+            {
+                chatPanel.BringToFront();
+                chatPanel.LoadMessages();
+                // Hide notification panel if open
+                notificationPanel.Visible = false;
+                notificationPanelVisible = false;
+            }
+        }
+
+        private void ChatPanel_MessageSent(object sender, ChatMessage e)
+        {
+            // Message sent successfully
+            UpdateChatBadge();
+        }
+
+        private void BirthdayWidget_ClientClicked(object sender, Client e)
+        {
+            // Open client profile when birthday is clicked
+            if (e != null)
+            {
+                var clientForm = new ClientEditForm(e);
+                clientForm.ShowDialog();
+
+                // Refresh dashboard after closing client form
+                RefreshStats();
+            }
+        }
+
+        private void TaskWidget_AddTaskClicked(object sender, EventArgs e)
+        {
+            // Open task creation form
+            var taskForm = new TaskEditForm();
+            if (taskForm.ShowDialog() == DialogResult.OK)
+            {
+                // Refresh task list and stats after task is created
+                taskWidget?.RefreshTasks();
+                RefreshStats();
+            }
+        }
+
+        private void TaskWidget_TaskClicked(object sender, TodoTask task)
+        {
+            // Open task edit form to view/edit the task
+            if (task != null)
+            {
+                var taskForm = new TaskEditForm(task);
+                if (taskForm.ShowDialog() == DialogResult.OK)
+                {
+                    // Refresh task list and stats after task is edited
+                    taskWidget?.RefreshTasks();
+                    RefreshStats();
+                }
+            }
+        }
+
+        private void UpdateChatBadge()
+        {
+            try
+            {
+                var chatRepo = new ChatMessageRepository();
+                int newMessagesCount = chatRepo.GetUnreadCount(AuthService.Instance.GetCurrentUserId());
+
+                if (newMessagesCount > 0)
+                {
+                    lblChatBadge.Text = newMessagesCount > 99 ? "99+" : newMessagesCount.ToString();
+                    lblChatBadge.Visible = true;
+                }
+                else
+                {
+                    lblChatBadge.Visible = false;
+                }
+            }
+            catch
+            {
+                lblChatBadge.Visible = false;
+            }
+        }
+
+        private void BtnNotifications_Click(object sender, EventArgs e)
+        {
+            notificationPanelVisible = !notificationPanelVisible;
+            notificationPanel.Visible = notificationPanelVisible;
+
+            if (notificationPanelVisible)
+            {
+                notificationPanel.BringToFront();
+                notificationPanel.RefreshNotifications();
+            }
+        }
+
+        private void NotificationPanel_NotificationClicked(object sender, EventArgs e)
+        {
+            var notification = sender as Notification;
+            if (notification != null)
+            {
+                // Handle notification click - navigate to related entity
+                HandleNotificationAction(notification);
+            }
+            UpdateNotificationBadge();
+        }
+
+        private void HandleNotificationAction(Notification notification)
+        {
+            // Handle different notification types
+            switch (notification.RelatedEntityType)
+            {
+                case "Task":
+                    // Open tasks form
+                    break;
+                case "Client":
+                    // Open client details
+                    if (notification.RelatedEntityId.HasValue)
+                    {
+                        // Open client form with this client ID
+                    }
+                    break;
+                case "Birthday":
+                    // Open clients list filtered by birthdays
+                    break;
+            }
+
+            // Hide notification panel after action
+            notificationPanel.Visible = false;
+            notificationPanelVisible = false;
+        }
+
+        private void UpdateNotificationBadge()
+        {
+            try
+            {
+                var notifRepo = new NotificationRepository();
+                int unreadCount = notifRepo.GetUnreadCount(AuthService.Instance.GetCurrentUserId());
+
+                if (unreadCount > 0)
+                {
+                    lblNotificationBadge.Text = unreadCount > 99 ? "99+" : unreadCount.ToString();
+                    lblNotificationBadge.Visible = true;
+                }
+                else
+                {
+                    lblNotificationBadge.Visible = false;
+                }
+
+                // Update desktop tray icon
+                DesktopNotificationService.Instance.UpdateTrayIcon(unreadCount > 0);
+            }
+            catch
+            {
+                lblNotificationBadge.Visible = false;
+            }
+        }
+
+        private Button CreateSidebarButton(string text, int y)
+        {
+            // Get icon for this menu item
+            string icon = menuIcons.ContainsKey(text) ? menuIcons[text] : "•";
+
+            var button = new Button
+            {
+                Text = $"{icon}  {text}",
+                Tag = new { FullText = text, Icon = icon }, // Store original text and icon
+                Location = new Point(0, y),
+                Size = new Size(UITheme.Spacing.SidebarWidth, 50),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = UITheme.Colors.SidebarBackground,
+                ForeColor = UITheme.Colors.SidebarText,
+                Font = new Font(UITheme.Fonts.PrimaryFont, 10, FontStyle.Regular),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(20, 0, 0, 0),
+                Cursor = Cursors.Hand
+            };
+
+            button.FlatAppearance.BorderSize = 0;
+            button.FlatAppearance.MouseOverBackColor = UITheme.Colors.SidebarHover;
+
+            // Add hover effects with smooth transitions
+            button.MouseEnter += (s, e) =>
+            {
+                button.BackColor = UITheme.Colors.SidebarHover;
+                button.ForeColor = Color.White;
+            };
+
+            button.MouseLeave += (s, e) =>
+            {
+                button.BackColor = UITheme.Colors.SidebarBackground;
+                button.ForeColor = UITheme.Colors.SidebarText;
+            };
+
+            return button;
+        }
+
+        private void LoadDashboard()
+        {
+            RefreshStats();
+            CreateStatCards();
+        }
+
+        private void CreateChangelogPanel()
+        {
+            // Main changelog panel
+            panelChangelog = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 50, // Collapsed height (just the header)
+                BackColor = Color.White,
+                Margin = new Padding(20)
+            };
+
+            // Toggle button (header)
+            btnToggleChangelog = new Button
+            {
+                Dock = DockStyle.Top,
+                Height = 50,
+                Text = "▼ Changelog & User Guide - Click to expand",
+                BackColor = Color.FromArgb(41, 128, 185),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 11, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(20, 0, 0, 0),
+                Cursor = Cursors.Hand
+            };
+            btnToggleChangelog.FlatAppearance.BorderSize = 0;
+            btnToggleChangelog.Click += ToggleChangelog;
+
+            // Changelog text box (initially hidden)
+            txtChangelog = new RichTextBox
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                BorderStyle = BorderStyle.None,
+                BackColor = Color.White,
+                Font = new Font("Consolas", 9),
+                Padding = new Padding(15),
+                Visible = false
+            };
+
+            LoadChangelogContent();
+
+            panelChangelog.Controls.Add(txtChangelog);
+            panelChangelog.Controls.Add(btnToggleChangelog);
+        }
+
+        private void ToggleChangelog(object sender, EventArgs e)
+        {
+            changelogExpanded = !changelogExpanded;
+
+            if (changelogExpanded)
+            {
+                panelChangelog.Height = 400; // Expanded height
+                txtChangelog.Visible = true;
+                btnToggleChangelog.Text = "▲ Changelog & User Guide - Click to collapse";
+            }
+            else
+            {
+                panelChangelog.Height = 50; // Collapsed height
+                txtChangelog.Visible = false;
+                btnToggleChangelog.Text = "▼ Changelog & User Guide - Click to expand";
+            }
+        }
+
+        private void LoadChangelogContent()
+        {
+            txtChangelog.Clear();
+            txtChangelog.SelectionFont = new Font("Segoe UI", 12, FontStyle.Bold);
+            txtChangelog.SelectionColor = Color.FromArgb(41, 128, 185);
+            txtChangelog.AppendText("REACT CRM - Changelog & User Guide\n");
+            txtChangelog.AppendText(new string('=', 80) + "\n\n");
+
+            // Version info
+            txtChangelog.SelectionFont = new Font("Segoe UI", 10, FontStyle.Bold);
+            txtChangelog.SelectionColor = Color.FromArgb(39, 174, 96);
+            txtChangelog.AppendText("Version 1.2.0 - Latest Updates\n\n");
+
+            txtChangelog.SelectionFont = new Font("Consolas", 9);
+            txtChangelog.SelectionColor = Color.Black;
+
+            // Recent changes
+            txtChangelog.SelectionFont = new Font("Segoe UI", 9, FontStyle.Bold);
+            txtChangelog.AppendText("✨ New Features:\n");
+            txtChangelog.SelectionFont = new Font("Consolas", 9, FontStyle.Regular);
+            txtChangelog.AppendText("  • Field History Tracking - View all changes made to client data over time\n");
+            txtChangelog.AppendText("  • Version Restore - Restore any field to a previous value from history\n");
+            txtChangelog.AppendText("  • CSV Import History - All import updates now track complete change history\n");
+            txtChangelog.AppendText("  • Custom Field Migration - Automatic data migration for field name updates\n\n");
+
+            txtChangelog.SelectionFont = new Font("Segoe UI", 9, FontStyle.Bold);
+            txtChangelog.AppendText("🐛 Bug Fixes:\n");
+            txtChangelog.SelectionFont = new Font("Consolas", 9, FontStyle.Regular);
+            txtChangelog.AppendText("  • Fixed custom field display issue with JSON deserialization\n");
+            txtChangelog.AppendText("  • Fixed column alignment for custom fields (now ordered by ID)\n");
+            txtChangelog.AppendText("  • Fixed field name mismatch between database keys and custom field names\n");
+            txtChangelog.AppendText("  • Added proper handling for JToken/JValue from Newtonsoft.Json\n\n");
+
+            txtChangelog.SelectionFont = new Font("Segoe UI", 10, FontStyle.Bold);
+            txtChangelog.SelectionColor = Color.FromArgb(230, 126, 34);
+            txtChangelog.AppendText("\n📖 How to Use REACT CRM\n\n");
+
+            txtChangelog.SelectionFont = new Font("Consolas", 9);
+            txtChangelog.SelectionColor = Color.Black;
+
+            // Clients section
+            txtChangelog.SelectionFont = new Font("Segoe UI", 9, FontStyle.Bold);
+            txtChangelog.AppendText("👥 Managing Clients:\n");
+            txtChangelog.SelectionFont = new Font("Consolas", 9, FontStyle.Regular);
+            txtChangelog.AppendText("  1. Click 'Clients' in the sidebar to view all clients\n");
+            txtChangelog.AppendText("  2. Use 'Add Client' to create new client records\n");
+            txtChangelog.AppendText("  3. Double-click any client row or select and click 'Edit' to modify\n");
+            txtChangelog.AppendText("  4. Click 'View Change History' in edit form to see all field changes\n");
+            txtChangelog.AppendText("  5. Use search box to filter clients by name, SSN, email, or phone\n\n");
+
+            // Custom Fields section
+            txtChangelog.SelectionFont = new Font("Segoe UI", 9, FontStyle.Bold);
+            txtChangelog.AppendText("🔧 Custom Fields:\n");
+            txtChangelog.SelectionFont = new Font("Consolas", 9, FontStyle.Regular);
+            txtChangelog.AppendText("  1. Click 'Custom Fields' to open the field manager\n");
+            txtChangelog.AppendText("  2. Supported field types: text, number, date, dropdown, checkbox\n");
+            txtChangelog.AppendText("  3. Custom fields automatically appear in client edit forms\n");
+            txtChangelog.AppendText("  4. All custom field changes are tracked in history\n");
+            txtChangelog.AppendText("  5. Fields are displayed in grid columns (ordered by creation)\n\n");
+
+            // Import section
+            txtChangelog.SelectionFont = new Font("Segoe UI", 9, FontStyle.Bold);
+            txtChangelog.AppendText("📥 Importing Data:\n");
+            txtChangelog.SelectionFont = new Font("Consolas", 9, FontStyle.Regular);
+            txtChangelog.AppendText("  1. Click 'Import CSV' to start the import wizard\n");
+            txtChangelog.AppendText("  2. Select your CSV file and choose delimiter (comma, semicolon, or tab)\n");
+            txtChangelog.AppendText("  3. Map CSV columns to CRM fields (supports custom fields)\n");
+            txtChangelog.AppendText("  4. Review preview and click 'Import' to process\n");
+            txtChangelog.AppendText("  5. Updates to existing clients now preserve full change history\n\n");
+
+            // History section
+            txtChangelog.SelectionFont = new Font("Segoe UI", 9, FontStyle.Bold);
+            txtChangelog.AppendText("📜 Field History:\n");
+            txtChangelog.SelectionFont = new Font("Consolas", 9, FontStyle.Regular);
+            txtChangelog.AppendText("  1. Open any client and click 'View Change History' button\n");
+            txtChangelog.AppendText("  2. Select a field from the dropdown to see its version history\n");
+            txtChangelog.AppendText("  3. Each version shows old value, new value, date, and who changed it\n");
+            txtChangelog.AppendText("  4. Click any version and select 'Restore Selected Version' to revert\n");
+            txtChangelog.AppendText("  5. Restoring creates a new history entry (non-destructive)\n\n");
+
+            // Advanced Search section
+            txtChangelog.SelectionFont = new Font("Segoe UI", 9, FontStyle.Bold);
+            txtChangelog.AppendText("🔍 Advanced Search:\n");
+            txtChangelog.SelectionFont = new Font("Consolas", 9, FontStyle.Regular);
+            txtChangelog.AppendText("  1. Build complex search queries with multiple criteria\n");
+            txtChangelog.AppendText("  2. Search across standard and custom fields\n");
+            txtChangelog.AppendText("  3. Combine conditions with AND/OR logic\n");
+            txtChangelog.AppendText("  4. Export search results to CSV\n\n");
+
+            // Analytics section
+            txtChangelog.SelectionFont = new Font("Segoe UI", 9, FontStyle.Bold);
+            txtChangelog.AppendText("📊 Analytics:\n");
+            txtChangelog.SelectionFont = new Font("Consolas", 9, FontStyle.Regular);
+            txtChangelog.AppendText("  1. View charts for client growth, data quality, and field usage\n");
+            txtChangelog.AppendText("  2. Track missing data and incomplete records\n");
+            txtChangelog.AppendText("  3. Export charts and reports for external use\n\n");
+
+            // Audit Logs section
+            txtChangelog.SelectionFont = new Font("Segoe UI", 9, FontStyle.Bold);
+            txtChangelog.AppendText("📋 Audit Logs:\n");
+            txtChangelog.SelectionFont = new Font("Consolas", 9, FontStyle.Regular);
+            txtChangelog.AppendText("  1. View all system activities and user actions\n");
+            txtChangelog.AppendText("  2. Filter by date range, user, action type, or entity\n");
+            txtChangelog.AppendText("  3. Export logs to CSV for compliance reporting\n");
+            txtChangelog.AppendText("  4. Track creates, updates, deletes, and imports\n\n");
+
+            // Backup section
+            txtChangelog.SelectionFont = new Font("Segoe UI", 9, FontStyle.Bold);
+            txtChangelog.AppendText("💾 Backup & Restore:\n");
+            txtChangelog.SelectionFont = new Font("Consolas", 9, FontStyle.Regular);
+            txtChangelog.AppendText("  1. Click 'Backup' to create a timestamped database backup\n");
+            txtChangelog.AppendText("  2. Backups are stored in the 'backups' directory\n");
+            txtChangelog.AppendText("  3. To restore, replace crm.db with a backup file\n");
+            txtChangelog.AppendText("  4. Regular backups recommended before major imports\n\n");
+
+            // Tips section
+            txtChangelog.SelectionFont = new Font("Segoe UI", 10, FontStyle.Bold);
+            txtChangelog.SelectionColor = Color.FromArgb(142, 68, 173);
+            txtChangelog.AppendText("\n💡 Tips & Best Practices:\n\n");
+            txtChangelog.SelectionFont = new Font("Consolas", 9);
+            txtChangelog.SelectionColor = Color.Black;
+            txtChangelog.AppendText("  • Create backups before importing large datasets\n");
+            txtChangelog.AppendText("  • Use custom fields instead of modifying core database structure\n");
+            txtChangelog.AppendText("  • Check field history when investigating data discrepancies\n");
+            txtChangelog.AppendText("  • CSV imports with existing SSNs will update (not duplicate)\n");
+            txtChangelog.AppendText("  • All updates are tracked - you can always restore previous values\n");
+            txtChangelog.AppendText("  • Use Advanced Search to find clients by custom field values\n\n");
+
+            // Support section
+            txtChangelog.SelectionFont = new Font("Segoe UI", 9, FontStyle.Bold);
+            txtChangelog.SelectionColor = Color.FromArgb(231, 76, 60);
+            txtChangelog.AppendText("⚠️ Default Credentials:\n");
+            txtChangelog.SelectionFont = new Font("Consolas", 9);
+            txtChangelog.SelectionColor = Color.Black;
+            txtChangelog.AppendText("  Username: admin\n");
+            txtChangelog.AppendText("  Password: admin123\n");
+            txtChangelog.AppendText("  (Change these after first login via Manage Workers)\n");
+        }
+
+        private void CreateStatCards()
+        {
+            panelStats.Controls.Clear();
+
+            int cardWidth = 220;
+            int cardHeight = 140;
+            int spacing = 20;
+            int x = 20;
+            int y = 20;
+
+            // Total Clients Card
+            var clientsCard = CreateStatCard("Total Clients", GetTotalClients().ToString(),
+                Color.FromArgb(52, 152, 219), x, y, cardWidth, cardHeight);
+            panelStats.Controls.Add(clientsCard);
+            x += cardWidth + spacing;
+
+            // Active Workers Card
+            var workersCard = CreateStatCard("Active Workers", GetActiveWorkers().ToString(),
+                Color.FromArgb(46, 204, 113), x, y, cardWidth, cardHeight);
+            panelStats.Controls.Add(workersCard);
+            x += cardWidth + spacing;
+
+            // Today's Activities Card
+            var activitiesCard = CreateStatCard("Today's Activities", GetTodayActivities().ToString(),
+                Color.FromArgb(155, 89, 182), x, y, cardWidth, cardHeight);
+            panelStats.Controls.Add(activitiesCard);
+            x += cardWidth + spacing;
+
+            // Custom Fields Card
+            var fieldsCard = CreateStatCard("Custom Fields", GetCustomFieldsCount().ToString(),
+                Color.FromArgb(241, 196, 15), x, y, cardWidth, cardHeight);
+            panelStats.Controls.Add(fieldsCard);
+            x += cardWidth + spacing;
+
+            // Pending Tasks Card
+            var tasksCard = CreateStatCard("Pending Tasks", GetPendingTasksCount().ToString(),
+                Color.FromArgb(231, 76, 60), x, y, cardWidth, cardHeight);
+            panelStats.Controls.Add(tasksCard);
+        }
+
+        private Panel CreateStatCard(string title, string value, Color color, int x, int y, int width, int height)
+        {
+            var card = new Panel
+            {
+                Location = new Point(x, y),
+                Size = new Size(width, height),
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            // Color accent bar at top
+            var accentBar = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 6,
+                BackColor = color
+            };
+            card.Controls.Add(accentBar);
+
+            // Icon for the card
+            string icon = title.Contains("Clients") ? "👥" :
+                         title.Contains("Workers") ? "👷" :
+                         title.Contains("Activities") ? "📊" :
+                         title.Contains("Fields") ? "🔧" :
+                         title.Contains("Tasks") ? "✅" : "📈";
+
+            var lblIcon = new Label
+            {
+                Text = icon,
+                Font = new Font(UITheme.Fonts.PrimaryFont, 28),
+                Location = new Point(15, 20),
+                Size = new Size(50, 50),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            card.Controls.Add(lblIcon);
+
+            var lblValue = new Label
+            {
+                Text = value,
+                Font = new Font("Segoe UI", 32, FontStyle.Bold),
+                ForeColor = color,
+                Location = new Point(75, 20),
+                AutoSize = true
+            };
+            card.Controls.Add(lblValue);
+
+            var lblTitle = new Label
+            {
+                Text = title,
+                Font = new Font("Segoe UI", 11, FontStyle.Regular),
+                ForeColor = UITheme.Colors.TextSecondary,
+                Location = new Point(15, height - 35),
+                Size = new Size(width - 30, 20),
+                AutoEllipsis = true
+            };
+            card.Controls.Add(lblTitle);
+
+            // Hover effect
+            card.MouseEnter += (s, e) =>
+            {
+                card.BackColor = UITheme.Colors.BackgroundTertiary;
+            };
+
+            card.MouseLeave += (s, e) =>
+            {
+                card.BackColor = Color.White;
+            };
+
+            return card;
+        }
+
+        private int GetPendingTasksCount()
+        {
+            try
+            {
+                var repo = new TodoTaskRepository();
+                return repo.GetPendingTasks().Count;
+            }
+            catch { return 0; }
+        }
+
+        private void RefreshStats()
+        {
+            CreateStatCards();
+            birthdayWidget?.LoadBirthdays();
+        }
+
+        private int GetTotalClients()
+        {
+            try
+            {
+                var repo = new ClientRepository();
+                return repo.GetAllClients().Count;
+            }
+            catch { return 0; }
+        }
+
+        private int GetActiveWorkers()
+        {
+            try
+            {
+                var repo = new WorkerRepository();
+                return repo.GetAllWorkers().Count(w => w.IsActive);
+            }
+            catch { return 0; }
+        }
+
+        private int GetTodayActivities()
+        {
+            try
+            {
+                // Use the correct static method from AuditService
+                return AuditService.GetAuditLogs(DateTime.Today, DateTime.Today.AddDays(1)).Count;
+            }
+            catch { return 0; }
+        }
+
+        private int GetCustomFieldsCount()
+        {
+            try
+            {
+                return DbConnection.ExecuteScalar<int>("SELECT COUNT(*) FROM CustomFields WHERE IsActive = 1");
+            }
+            catch { return 0; }
+        }
+
+        private void SetupPermissions()
+        {
+            var auth = AuthService.Instance;
+
+            // Configure menu visibility based on user permissions
+            var menuConfig = MenuConfigService.Instance;
+
+            // Set menu item visibility based on permissions
+            menuConfig.SetMenuItemVisibility("Audit Logs", auth.CanViewLogs());
+            menuConfig.SetMenuItemVisibility("Backup", auth.CanCreateBackups());
+            menuConfig.SetMenuItemVisibility("Manage Workers", auth.CanManageWorkers());
+            menuConfig.SetMenuItemVisibility("Import CSV", auth.CanImportData());
+            menuConfig.SetMenuItemVisibility("Export CSV", auth.CanEditClients());
+            menuConfig.SetMenuItemVisibility("Import Database", auth.CanImportData());
+            menuConfig.SetMenuItemVisibility("Custom Fields", auth.CanEditClients());
+            // Plugins available to all users
+
+            menuConfig.SetMenuItemVisibility("Plugins", true);
+
+            // Reload menu with updated permissions
+            RefreshMenuUI();
+        }
+
+        /// <summary>
+        /// Refreshes the menu UI based on current configuration
+        /// </summary>
+        private void RefreshMenuUI()
+        {
+            // Clear existing menu buttons
+            panelMenuContainer.Controls.Clear();
+
+            // Get updated menu items
+            var menuItems = MenuConfigService.Instance.GetVisibleMenuItems();
+
+            int buttonY = UITheme.Spacing.Small;
+            int buttonHeight = 50;
+            int buttonSpacing = 5;
+
+            // Recreate buttons with updated visibility
+            foreach (var menuItem in menuItems)
+            {
+                Button btn = CreateSidebarButton(menuItem.Name, buttonY);
+                btn.Click += (s, e) => HandleMenuItemClick(menuItem.Name);
+                panelMenuContainer.Controls.Add(btn);
+                StoreButtonReference(menuItem.Name, btn);
+                buttonY += buttonHeight + buttonSpacing;
+            }
+
+            panelMenuContainer.Height = buttonY;
+        }
+
+        private void OpenClientsForm()
+        {
+            var form = new ClientListForm();
+            form.ShowDialog();
+        }
+
+        private void OpenTimeClockForm()
+        {
+            var form = new TimeClockForm();
+            form.ShowDialog();
+        }
+
+        private void OpenImportForm()
+        {
+            if (!AuthService.Instance.CanImportData())
+            {
+                MessageBox.Show("You don't have permission to import data.", "Access Denied",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            var form = new CsvMapperForm();
+            form.ShowDialog();
+        }
+
+        private void OpenExportForm()
+        {
+            if (!AuthService.Instance.CanEditClients())
+            {
+                MessageBox.Show("You don't have permission to export data.", "Access Denied",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            var form = new CsvExportForm();
+            form.ShowDialog();
+        }
+
+        private void OpenDatabaseImportForm()
+        {
+            if (!AuthService.Instance.CanImportData())
+            {
+                MessageBox.Show("You don't have permission to import data.", "Access Denied",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            var form = new DatabaseImportForm();
+            form.ShowDialog();
+        }
+
+        private void OpenCustomFieldsForm()
+        {
+            if (!AuthService.Instance.CanEditClients())
+            {
+                MessageBox.Show("You don't have permission to manage custom fields.", "Access Denied",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            var form = new CompositionWizardForm();
+            form.ShowDialog();
+        }
+
+        private void OpenAdvancedSearchForm()
+        {
+            var form = new AdvancedSearchForm();
+            form.ShowDialog();
+        }
+
+        private void OpenChartsForm()
+        {
+            var form = new ChartBuilderForm();
+            form.ShowDialog();
+        }
+
+        private void OpenLogsForm()
+        {
+            if (!AuthService.Instance.CanViewLogs())
+            {
+                MessageBox.Show("You don't have permission to view logs.", "Access Denied",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            var form = new LogViewerForm();
+            form.ShowDialog();
+        }
+
+        private void OpenWorkersForm()
+        {
+            if (!AuthService.Instance.CanManageWorkers())
+            {
+                MessageBox.Show("You don't have permission to manage workers.", "Access Denied",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            var form = new WorkerManagementForm();
+            form.ShowDialog();
+        }
+
+        private void OpenPdfTemplatesForm()
+        {
+            var form = new TemplateManagementForm();
+            form.ShowDialog();
+        }
+
+        private void OpenPluginsForm()
+        {
+            var form = new PluginManagementForm();
+            form.ShowDialog();
+        }
+
+        private void CreateBackup()
+        {
+            if (!AuthService.Instance.CanCreateBackups())
+            {
+                MessageBox.Show("You don't have permission to create backups.", "Access Denied",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                // BackupService is a static class; call its static method directly.
+                string backupFile = BackupService.CreateBackup();
+
+                MessageBox.Show($"Backup created successfully:\n{backupFile}", "Backup Complete",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Backup failed: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void Logout()
+        {
+            if (MessageBox.Show("Are you sure you want to logout?", "Confirm Logout",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                AuthService.Instance.Logout();
+                this.Close();
+            }
+        }
+
+        /// <summary>
+        /// Stores button references for later manipulation
+        /// </summary>
+        private Dictionary<string, Button> buttonReferences = new Dictionary<string, Button>();
+
+        private void StoreButtonReference(string menuName, Button button)
+        {
+            if (!buttonReferences.ContainsKey(menuName))
+                buttonReferences[menuName] = button;
+        }
+
+        /// <summary>
+        /// Handles menu item clicks dynamically
+        /// </summary>
+        private void HandleMenuItemClick(string menuName)
+        {
+            switch (menuName)
+            {
+                case "Clients":
+                    OpenClientsForm();
+                    break;
+                case "Time Clock":
+                    OpenTimeClockForm();
+                    break;
+                case "Import CSV":
+                    OpenImportForm();
+                    break;
+                case "Export CSV":
+                    OpenExportForm();
+                    break;
+                case "Import Database":
+                    OpenDatabaseImportForm();
+                    break;
+                case "Custom Fields":
+                    OpenCustomFieldsForm();
+                    break;
+                case "Advanced Search":
+                    OpenAdvancedSearchForm();
+                    break;
+                case "Analytics":
+                    OpenChartsForm();
+                    break;
+                case "Audit Logs":
+                    OpenLogsForm();
+                    break;
+                case "Backup":
+                    CreateBackup();
+                    break;
+                case "Manage Workers":
+                    OpenWorkersForm();
+                    break;
+                case "PDF Templates":
+                    OpenPdfTemplatesForm();
+                    break;
+                case "Plugins":
+                    OpenPluginsForm();
+                    break;
+                default:
+                    break;
+
+            }
+        }
+        private void OpenTemplatesForm()
+        {
+            var form = new TemplateManagementForm();
+            form.ShowDialog();
+        }
+
+        /// <summary>
+        /// Toggles sidebar between collapsed and expanded state with smooth animation
+        /// </summary>
+        private void ToggleSidebar()
+        {
+            sidebarCollapsed = !sidebarCollapsed;
+
+            // Set target width for animation
+            targetSidebarWidth = sidebarCollapsed
+                ? UITheme.Spacing.SidebarCollapsedWidth
+                : UITheme.Spacing.SidebarWidth;
+
+            // Start animation timer
+            if (!sidebarAnimationTimer.Enabled)
+            {
+                sidebarAnimationTimer.Start();
+            }
+
+            // Update button text immediately for responsiveness
+            if (sidebarCollapsed)
+            {
+                btnToggleSidebar.Text = "☰";
+                // Update button text to show only icon
+                UpdateSidebarButtonsDisplay(true);
+            }
+            else
+            {
+                btnToggleSidebar.Text = "☰";
+                // Update button text to show icon + text
+                UpdateSidebarButtonsDisplay(false);
+            }
+        }
+
+        /// <summary>
+        /// Animation tick handler for smooth sidebar transitions
+        /// </summary>
+        private void SidebarAnimationTimer_Tick(object sender, EventArgs e)
+        {
+            int currentWidth = panelSidebar.Width;
+
+            // Check if we've reached the target
+            if (Math.Abs(currentWidth - targetSidebarWidth) < ANIMATION_STEP)
+            {
+                panelSidebar.Width = targetSidebarWidth;
+                sidebarAnimationTimer.Stop();
+                return;
+            }
+
+            // Animate towards target
+            if (currentWidth < targetSidebarWidth)
+            {
+                panelSidebar.Width = Math.Min(currentWidth + ANIMATION_STEP, targetSidebarWidth);
+            }
+            else
+            {
+                panelSidebar.Width = Math.Max(currentWidth - ANIMATION_STEP, targetSidebarWidth);
+            }
+        }
+
+        /// <summary>
+        /// Updates sidebar button display based on collapsed state
+        /// </summary>
+        private void UpdateSidebarButtonsDisplay(bool collapsed)
+        {
+            foreach (Control ctrl in panelMenuContainer.Controls)
+            {
+                if (ctrl is Button btn && btn.Tag != null)
+                {
+                    dynamic tag = btn.Tag;
+                    string icon = tag.Icon;
+                    string fullText = tag.FullText;
+
+                    if (collapsed)
+                    {
+                        // Show only icon, centered
+                        btn.Text = icon;
+                        btn.TextAlign = ContentAlignment.MiddleCenter;
+                        btn.Padding = new Padding(0);
+                        btn.Font = new Font(UITheme.Fonts.PrimaryFont, 20, FontStyle.Regular);
+                    }
+                    else
+                    {
+                        // Show icon + text
+                        btn.Text = $"{icon}  {fullText}";
+                        btn.TextAlign = ContentAlignment.MiddleLeft;
+                        btn.Padding = new Padding(20, 0, 0, 0);
+                        btn.Font = new Font(UITheme.Fonts.PrimaryFont, 10, FontStyle.Regular);
+                    }
+                }
+            }
+
+            // Update logout button
+            if (btnLogout != null)
+            {
+                if (collapsed)
+                {
+                    btnLogout.Text = "🚪";
+                    btnLogout.TextAlign = ContentAlignment.MiddleCenter;
+                    btnLogout.Padding = new Padding(0);
+                    btnLogout.Font = new Font(UITheme.Fonts.PrimaryFont, 20, FontStyle.Regular);
+                }
+                else
+                {
+                    btnLogout.Text = "🚪  Logout";
+                    btnLogout.TextAlign = ContentAlignment.MiddleLeft;
+                    btnLogout.Padding = new Padding(20, 0, 0, 0);
+                    btnLogout.Font = new Font(UITheme.Fonts.PrimaryFont, 10, FontStyle.Regular);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Refreshes menu items based on user permissions
+        /// </summary>
+        private void RefreshMenuItems()
+        {
+            SetupPermissions();
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            base.OnFormClosed(e);
+            refreshTimer?.Stop();
+            refreshTimer?.Dispose();
+            sidebarAnimationTimer?.Stop();
+            sidebarAnimationTimer?.Dispose();
+
+            // Cleanup plugins
+            PluginManager.Instance.CleanupPlugins();
+        }
+    }
+}

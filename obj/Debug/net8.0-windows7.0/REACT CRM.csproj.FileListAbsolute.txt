@@ -1,0 +1,90 @@
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\win-x86\native\WebView2Loader.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\win-x64\native\WebView2Loader.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\win-arm64\native\WebView2Loader.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\REACT CRM.exe
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\REACT CRM.deps.json
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\REACT CRM.runtimeconfig.json
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\REACT CRM.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\REACT CRM.pdb
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\itext.barcodes.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\itext.bouncy-castle-connector.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\itext.forms.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\itext.io.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\itext.kernel.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\itext.layout.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\itext.pdfa.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\itext.pdfua.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\itext.sign.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\itext.styledxmlparser.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\itext.svg.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\itext.commons.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\LiveCharts.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.AspNetCore.Http.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.AspNetCore.Http.Abstractions.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.AspNetCore.Http.Features.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.AspNetCore.WebUtilities.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Data.Sqlite.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.DotNet.PlatformAbstractions.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Extensions.DependencyInjection.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Extensions.DependencyInjection.Abstractions.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Extensions.DependencyModel.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Extensions.Logging.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Extensions.Logging.Abstractions.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Extensions.ObjectPool.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Extensions.Options.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Extensions.Primitives.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Net.Http.Headers.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Newtonsoft.Json.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\SQLitePCLRaw.batteries_v2.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\SQLitePCLRaw.core.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\SQLitePCLRaw.provider.e_sqlite3.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\System.IO.Pipelines.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\System.Text.Encodings.Web.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\System.Text.Json.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\browser-wasm\nativeassets\net8.0\e_sqlite3.a
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\linux-arm\native\libe_sqlite3.so
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\linux-arm64\native\libe_sqlite3.so
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\linux-armel\native\libe_sqlite3.so
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\linux-mips64\native\libe_sqlite3.so
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\linux-musl-arm\native\libe_sqlite3.so
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\linux-musl-arm64\native\libe_sqlite3.so
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\linux-musl-riscv64\native\libe_sqlite3.so
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\linux-musl-s390x\native\libe_sqlite3.so
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\linux-musl-x64\native\libe_sqlite3.so
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\linux-ppc64le\native\libe_sqlite3.so
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\linux-riscv64\native\libe_sqlite3.so
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\linux-s390x\native\libe_sqlite3.so
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\linux-x64\native\libe_sqlite3.so
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\linux-x86\native\libe_sqlite3.so
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\maccatalyst-arm64\native\libe_sqlite3.dylib
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\maccatalyst-x64\native\libe_sqlite3.dylib
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\osx-arm64\native\libe_sqlite3.dylib
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\osx-x64\native\libe_sqlite3.dylib
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\win-arm\native\e_sqlite3.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\win-arm64\native\e_sqlite3.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\win-x64\native\e_sqlite3.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\win-x86\native\e_sqlite3.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\runtimes\browser\lib\net8.0\System.Text.Encodings.Web.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Web.WebView2.Core.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Web.WebView2.WinForms.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Web.WebView2.Wpf.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Web.WebView2.Core.xml
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Web.WebView2.WinForms.xml
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Microsoft.Web.WebView2.Wpf.xml
+E:\CODIGO FUENTE GEMINI VERSION FINAL\bin\Debug\net8.0-windows7.0\Interop.WIA.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\REACT CRM.csproj.AssemblyReference.cache
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\Interop.WIA.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\REACT CRM.csproj.ResolveComReference.cache
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\ReactCRM.UI.Dashboard.DashboardForm.resources
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\ReactCRM.UI.Login.LoginForm.resources
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\REACT CRM.csproj.GenerateResource.cache
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\REACT CRM.GeneratedMSBuildEditorConfig.editorconfig
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\REACT CRM.AssemblyInfoInputs.cache
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\REACT CRM.AssemblyInfo.cs
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\REACT CRM.csproj.CoreCompileInputs.cache
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\REACT CRM.csproj.Up2Date
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\REACT CRM.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\refint\REACT CRM.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\REACT CRM.pdb
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\REACT CRM.genruntimeconfig.cache
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net8.0-windows7.0\ref\REACT CRM.dll

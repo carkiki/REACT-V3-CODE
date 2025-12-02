@@ -1,0 +1,10 @@
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net5.0-windows7.0\REACT CRM.csproj.AssemblyReference.cache
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net5.0-windows7.0\Interop.WIA.dll
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net5.0-windows7.0\REACT CRM.csproj.ResolveComReference.cache
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net5.0-windows7.0\ReactCRM.UI.Dashboard.DashboardForm.resources
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net5.0-windows7.0\ReactCRM.UI.Login.LoginForm.resources
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net5.0-windows7.0\REACT CRM.csproj.GenerateResource.cache
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net5.0-windows7.0\REACT CRM.GeneratedMSBuildEditorConfig.editorconfig
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net5.0-windows7.0\REACT CRM.AssemblyInfoInputs.cache
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net5.0-windows7.0\REACT CRM.AssemblyInfo.cs
+E:\CODIGO FUENTE GEMINI VERSION FINAL\obj\Debug\net5.0-windows7.0\REACT CRM.csproj.CoreCompileInputs.cache

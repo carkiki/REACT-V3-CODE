@@ -1,0 +1,101 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <_LastSelectedProfileId>E:\CODIGO FUENTE GEMINI VERSION FINAL\Properties\PublishProfiles\FolderProfile.pubxml</_LastSelectedProfileId>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Update="UI\Charts\ChartBuilderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Clients\ClientFilesForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Clients\ClientListForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Clients\DropboxUploadLinkForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Clients\FieldHistoryForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Clients\FilePreviewForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Components\BirthdayWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="UI\Components\NotificationPanel.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="UI\Components\StatCard.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Update="UI\Components\TaskListWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="UI\Components\TeamChatPanel.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="UI\CsvExportForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Dashboard\Dashboardform.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Fields\CompositionWizardForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Forms\LicenseActivationForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Forms\PluginManagementForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Import\CsvMapperForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Import\DatabaseImportForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Login\LoadingForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Login\LoginForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Logs\LogViewerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Search\AdvancedSearchForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Tasks\TodoTaskForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Templates\TemplateEditForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Templates\TemplateGenerateForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Templates\TemplateImportForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Templates\TemplateManagementForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Time\TimeClockForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Time\WorkerHoursReportForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Workers\WorkerEditForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Update="UI\Workers\WorkerManagementForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+  </ItemGroup>
+</Project>
