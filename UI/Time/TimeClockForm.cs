@@ -30,6 +30,8 @@ namespace ReactCRM.UI.Time
 
         private bool isAdmin;
 
+        private ErrorLogger logger;
+
 
 
         private Label lblCurrentStatus;
@@ -63,6 +65,8 @@ namespace ReactCRM.UI.Time
             currentUserId = AuthService.Instance.GetCurrentUserId();
 
             isAdmin = AuthService.Instance.GetCurrentUserRole() == "Admin";
+
+            logger = ErrorLogger.Instance;
 
 
 
@@ -386,19 +390,47 @@ namespace ReactCRM.UI.Time
 
 
 
+            // Add admin info label
+
+            if (isAdmin)
+
+            {
+
+                var lblAdminInfo = new Label
+
+                {
+
+                    Text = "ℹ️ Como administrador, puede editar las fechas y horas directamente en la tabla",
+
+                    Font = new Font("Segoe UI", 9, FontStyle.Italic),
+
+                    ForeColor = Color.FromArgb(155, 89, 182),
+
+                    Location = new Point(20, 35),
+
+                    AutoSize = true
+
+                };
+
+                panelHistory.Controls.Add(lblAdminInfo);
+
+            }
+
+
+
             // Time entries grid
 
             gridTimeEntries = new DataGridView
 
             {
 
-                Location = new Point(20, 50),
+                Location = new Point(20, isAdmin ? 60 : 50),
 
                 Size = new Size(940, 220),
 
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
 
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                SelectionMode = DataGridViewSelectionMode.CellSelect,  // Changed from FullRowSelect to enable cell editing
 
                 MultiSelect = false,
 
@@ -415,6 +447,8 @@ namespace ReactCRM.UI.Time
                 RowHeadersVisible = false,
 
                 Font = new Font("Segoe UI", 9),
+
+                EditMode = DataGridViewEditMode.EditOnEnter,  // Enable editing on cell enter
 
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
 
@@ -494,7 +528,7 @@ namespace ReactCRM.UI.Time
 
             gridTimeEntries.Columns["Date"].Width = 100;
 
-            gridTimeEntries.Columns["Date"].ReadOnly = true;
+            gridTimeEntries.Columns["Date"].ReadOnly = !isAdmin; // Admins can edit dates
 
             gridTimeEntries.Columns["ClockIn"].Width = 100;
 
@@ -1042,7 +1076,57 @@ namespace ReactCRM.UI.Time
 
                 // Update based on column
 
-                if (columnName == "ClockIn")
+                if (columnName == "Date")
+
+                {
+
+                    if (DateTime.TryParse(row.Cells["Date"].Value.ToString(), out DateTime newDate))
+
+                    {
+
+                        // Update the date while preserving the time components
+
+                        DateTime oldClockIn = entry.ClockIn;
+
+                        DateTime oldClockOut = entry.ClockOut ?? DateTime.MinValue;
+
+
+
+                        entry.Date = newDate.Date;
+
+                        entry.ClockIn = newDate.Date.Add(oldClockIn.TimeOfDay);
+
+
+
+                        if (entry.ClockOut.HasValue)
+
+                        {
+
+                            entry.ClockOut = newDate.Date.Add(oldClockOut.TimeOfDay);
+
+                        }
+
+
+
+                        timeEntryRepository.Update(entry);
+
+                        logger.LogInfo($"Admin {currentUserId} updated date for time entry {entryId} from {oldClockIn:yyyy-MM-dd} to {newDate:yyyy-MM-dd}", "TimeClockForm.GridTimeEntries_CellValueChanged");
+
+                        MessageBox.Show("✅ Fecha actualizada correctamente", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    }
+
+                    else
+
+                    {
+
+                        MessageBox.Show("❌ Formato de fecha inválido. Use: yyyy-MM-dd", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                    }
+
+                }
+
+                else if (columnName == "ClockIn")
 
                 {
 
@@ -1054,7 +1138,17 @@ namespace ReactCRM.UI.Time
 
                         timeEntryRepository.Update(entry);
 
+                        logger.LogInfo($"Admin {currentUserId} updated clock-in time for entry {entryId} to {clockIn:HH:mm:ss}", "TimeClockForm.GridTimeEntries_CellValueChanged");
+
                         MessageBox.Show("✅ Hora de entrada actualizada", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    }
+
+                    else
+
+                    {
+
+                        MessageBox.Show("❌ Formato de hora inválido. Use: HH:mm:ss", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
                     }
 
@@ -1072,6 +1166,12 @@ namespace ReactCRM.UI.Time
 
                         entry.ClockOut = null;
 
+                        timeEntryRepository.Update(entry);
+
+                        logger.LogInfo($"Admin {currentUserId} removed clock-out time for entry {entryId} (set to in-progress)", "TimeClockForm.GridTimeEntries_CellValueChanged");
+
+                        MessageBox.Show("✅ Hora de salida eliminada (marcaje en progreso)", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
                     }
 
                     else if (DateTime.TryParse(clockOutValue, out DateTime clockOut))
@@ -1080,11 +1180,21 @@ namespace ReactCRM.UI.Time
 
                         entry.ClockOut = entry.Date.Date.Add(clockOut.TimeOfDay);
 
+                        timeEntryRepository.Update(entry);
+
+                        logger.LogInfo($"Admin {currentUserId} updated clock-out time for entry {entryId} to {clockOut:HH:mm:ss}", "TimeClockForm.GridTimeEntries_CellValueChanged");
+
+                        MessageBox.Show("✅ Hora de salida actualizada", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
                     }
 
-                    timeEntryRepository.Update(entry);
+                    else
 
-                    MessageBox.Show("✅ Hora de salida actualizada", "Éxito", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    {
+
+                        MessageBox.Show("❌ Formato de hora inválido. Use: HH:mm:ss o '---' para eliminar", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                    }
 
                 }
 
@@ -1100,6 +1210,8 @@ namespace ReactCRM.UI.Time
 
                         timeEntryRepository.Update(entry);
 
+                        logger.LogInfo($"Admin {currentUserId} updated break minutes for entry {entryId} to {breakMinutes}", "TimeClockForm.GridTimeEntries_CellValueChanged");
+
                     }
 
                 }
@@ -1111,6 +1223,8 @@ namespace ReactCRM.UI.Time
                     entry.Notes = row.Cells["Notes"].Value?.ToString() ?? "";
 
                     timeEntryRepository.Update(entry);
+
+                    logger.LogInfo($"Admin {currentUserId} updated notes for entry {entryId}", "TimeClockForm.GridTimeEntries_CellValueChanged");
 
                 }
 
@@ -1125,6 +1239,8 @@ namespace ReactCRM.UI.Time
             catch (Exception ex)
 
             {
+
+                logger.LogError($"Error updating time entry {entryId} by admin {currentUserId}", ex, "TimeClockForm.GridTimeEntries_CellValueChanged");
 
                 MessageBox.Show($"Error actualizando entrada: {ex.Message}", "Error",
 
