@@ -430,7 +430,7 @@ namespace ReactCRM.UI.Time
 
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
 
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                SelectionMode = DataGridViewSelectionMode.CellSelect,  // Changed from FullRowSelect to enable cell editing
 
                 MultiSelect = false,
 
@@ -447,6 +447,8 @@ namespace ReactCRM.UI.Time
                 RowHeadersVisible = false,
 
                 Font = new Font("Segoe UI", 9),
+
+                EditMode = DataGridViewEditMode.EditOnEnter,  // Enable editing on cell enter
 
                 Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
 

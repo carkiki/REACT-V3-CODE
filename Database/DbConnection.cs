@@ -108,11 +108,32 @@ namespace ReactCRM.Database
                 }
 
                 var result = cmd.ExecuteScalar();
-                return result == null || result == DBNull.Value ? default(T) : (T)result;
+
+                if (result == null || result == DBNull.Value)
+                    return default(T);
+
+                // Handle SQLite Int64 to Int32 conversion for COUNT queries
+                if (typeof(T) == typeof(int) && result is long longValue)
+                {
+                    return (T)(object)(int)longValue;
+                }
+
+                // Handle other numeric conversions
+                if (typeof(T) == typeof(int) && result is Int64)
+                {
+                    return (T)Convert.ChangeType(result, typeof(int));
+                }
+
+                return (T)result;
             }
             catch (SqliteException sqlEx)
             {
                 _logger.LogError($"Database error executing scalar query: {sql}", sqlEx, "DbConnection.ExecuteScalar");
+                throw;
+            }
+            catch (InvalidCastException castEx)
+            {
+                _logger.LogError($"Cast error in scalar query. SQL: {sql}, Expected type: {typeof(T).Name}", castEx, "DbConnection.ExecuteScalar");
                 throw;
             }
             catch (Exception ex)
