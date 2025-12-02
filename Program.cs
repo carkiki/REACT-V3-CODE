@@ -15,26 +15,60 @@ namespace ReactCRM
         [STAThread]
         static void Main()
         {
+            var logger = ErrorLogger.Instance;
+
             try
             {
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
 
-
+                logger.LogInfo("Application starting", "Program.Main");
 
                 // Initialize database on first run
-                DatabaseInitializer.Initialize();
+                try
+                {
+                    DatabaseInitializer.Initialize();
+                    logger.LogInfo("Database initialized successfully", "Program.Main");
+                }
+                catch (Exception dbEx)
+                {
+                    logger.LogCriticalError(
+                        "Failed to initialize database. The application cannot start.",
+                        dbEx,
+                        "Program.Main"
+                    );
+                    return;
+                }
 
                 // Start automatic database backup service
-                var backupService = DatabaseBackupService.Instance;
-                backupService.StartBackupService();
+                DatabaseBackupService? backupService = null;
+                try
+                {
+                    backupService = DatabaseBackupService.Instance;
+                    backupService.StartBackupService();
+                    logger.LogInfo("Backup service started", "Program.Main");
+                }
+                catch (Exception backupEx)
+                {
+                    logger.LogWarning($"Failed to start backup service: {backupEx.Message}", "Program.Main");
+                    // Continue without backup service - non-critical
+                }
 
                 // Start license validation service
-                var licenseService = LicenseValidationService.Instance;
-                licenseService.StartAsync().GetAwaiter().GetResult();
+                LicenseValidationService? licenseService = null;
+                try
+                {
+                    licenseService = LicenseValidationService.Instance;
+                    licenseService.StartAsync().GetAwaiter().GetResult();
+                    logger.LogInfo("License validation service started", "Program.Main");
+                }
+                catch (Exception licEx)
+                {
+                    logger.LogError("Failed to start license validation service", licEx, "Program.Main");
+                }
 
                 // Check if license is valid
-                if (!licenseService.IsLicenseValid)
+                if (licenseService != null && !licenseService.IsLicenseValid)
                 {
                     // Show license activation form
                     using (var licenseForm = new LicenseActivationForm())
@@ -43,6 +77,8 @@ namespace ReactCRM
 
                         if (result != DialogResult.OK || !licenseForm.LicenseActivated)
                         {
+                            logger.LogWarning("License activation cancelled or failed", "Program.Main");
+
                             MessageBox.Show(
                                 "REACT CRM requires a valid license to run.\n\n" +
                                 "Please contact your administrator to obtain a license key.",
@@ -52,9 +88,15 @@ namespace ReactCRM
                             );
 
                             // Cleanup services before exit
-                            backupService.StopBackupService();
-                            backupService.Dispose();
-                            licenseService.Stop();
+                            if (backupService != null)
+                            {
+                                backupService.StopBackupService();
+                                backupService.Dispose();
+                            }
+                            if (licenseService != null)
+                            {
+                                licenseService.Stop();
+                            }
 
                             return; // Exit application
                         }
@@ -64,17 +106,41 @@ namespace ReactCRM
                 // Cleanup when application exits
                 Application.ApplicationExit += (s, e) =>
                 {
-                    backupService.StopBackupService();
-                    backupService.Dispose();
-                    licenseService.Stop();
+                    try
+                    {
+                        logger.LogInfo("Application shutting down", "Program.ApplicationExit");
+
+                        if (backupService != null)
+                        {
+                            backupService.StopBackupService();
+                            backupService.Dispose();
+                            logger.LogInfo("Backup service stopped", "Program.ApplicationExit");
+                        }
+
+                        if (licenseService != null)
+                        {
+                            licenseService.Stop();
+                            logger.LogInfo("License service stopped", "Program.ApplicationExit");
+                        }
+                    }
+                    catch (Exception cleanupEx)
+                    {
+                        logger.LogError("Error during application cleanup", cleanupEx, "Program.ApplicationExit");
+                    }
                 };
 
                 // License is valid, continue to login
+                logger.LogInfo("Starting login form", "Program.Main");
                 Application.Run(new LoginForm());
+                logger.LogInfo("Application closed normally", "Program.Main");
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Critical Error: {ex.Message}\n\nStack Trace:\n{ex.StackTrace}", "Application Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                logger.LogCriticalError(
+                    "A critical error occurred and the application must close.",
+                    ex,
+                    "Program.Main"
+                );
             }
         }
     }
