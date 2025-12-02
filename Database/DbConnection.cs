@@ -10,7 +10,8 @@ namespace ReactCRM.Database
     {
         private static readonly string DB_FILE = "crm.db";
         // Connection string with timeout in seconds - increased for network scenarios
-        private static readonly string CONNECTION_STRING = $"Data Source={DB_FILE};Foreign Keys=True;Default Timeout=60;";
+        // Using BusyTimeout to handle multiple concurrent connections
+        private static readonly string CONNECTION_STRING = $"Data Source={DB_FILE};Foreign Keys=True;Default Timeout=120;";
         private static readonly object _lock = new object();
         private static bool _walModeEnabled = false;
         private static readonly ErrorLogger _logger = ErrorLogger.Instance;
@@ -29,23 +30,43 @@ namespace ReactCRM.Database
 
                     var connection = new SqliteConnection(CONNECTION_STRING);
 
-                    // Enable WAL mode on first connection for better concurrency
-                    // WAL mode allows multiple readers and one writer simultaneously
+                    // Enable appropriate journal mode based on location
+                    // WAL mode doesn't work on network drives, use DELETE mode instead
                     if (!_walModeEnabled)
                     {
                         try
                         {
                             connection.Open();
-                            using var cmd = new SqliteCommand("PRAGMA journal_mode=WAL;", connection);
-                            var result = cmd.ExecuteScalar();
+
+                            // Check if database is on a network path
+                            bool isNetworkPath = IsNetworkPath(System.IO.Path.GetFullPath(DB_FILE));
+
+                            if (isNetworkPath)
+                            {
+                                // Use DELETE journal mode for network paths (more compatible)
+                                // Set busy_timeout to handle concurrent access better
+                                using var cmd = new SqliteCommand(@"
+                                    PRAGMA journal_mode=DELETE;
+                                    PRAGMA synchronous=NORMAL;
+                                    PRAGMA busy_timeout=30000;", connection);
+                                var result = cmd.ExecuteScalar();
+                                _logger.LogInfo($"Network path detected. Journal mode set to DELETE with 30s busy timeout: {result}", "DbConnection.GetConnection");
+                            }
+                            else
+                            {
+                                // Use WAL mode for local paths (better concurrency)
+                                using var cmd = new SqliteCommand("PRAGMA journal_mode=WAL;", connection);
+                                var result = cmd.ExecuteScalar();
+                                _logger.LogInfo($"Local path detected. WAL mode enabled: {result}", "DbConnection.GetConnection");
+                            }
+
                             _walModeEnabled = true;
-                            _logger.LogInfo($"WAL mode enabled: {result}", "DbConnection.GetConnection");
                             connection.Close();
                         }
-                        catch (Exception walEx)
+                        catch (Exception journalEx)
                         {
-                            _logger.LogWarning($"Could not enable WAL mode: {walEx.Message}", "DbConnection.GetConnection");
-                            // Continue without WAL mode - not critical but reduces concurrency
+                            _logger.LogWarning($"Could not set journal mode: {journalEx.Message}", "DbConnection.GetConnection");
+                            // Continue without specific journal mode - SQLite will use default
                         }
                     }
 
@@ -56,6 +77,36 @@ namespace ReactCRM.Database
                     _logger.LogError("Failed to create database connection", ex, "DbConnection.GetConnection");
                     throw;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Checks if a path is on a network drive (UNC path or mapped network drive)
+        /// </summary>
+        private static bool IsNetworkPath(string path)
+        {
+            try
+            {
+                // Check for UNC path (\\server\share)
+                if (path.StartsWith(@"\\") || path.StartsWith(@"//"))
+                {
+                    return true;
+                }
+
+                // Check if the drive is a network drive
+                var root = System.IO.Path.GetPathRoot(path);
+                if (string.IsNullOrEmpty(root))
+                {
+                    return false;
+                }
+
+                var driveInfo = new System.IO.DriveInfo(root);
+                return driveInfo.DriveType == System.IO.DriveType.Network;
+            }
+            catch
+            {
+                // If we can't determine, assume it's local (safer default)
+                return false;
             }
         }
 
