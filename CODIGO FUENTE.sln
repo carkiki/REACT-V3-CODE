@@ -4,6 +4,8 @@ VisualStudioVersion = 17.5.2.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "REACT CRM", "REACT CRM.csproj", "{6279E458-B829-AEBC-B668-77C2B69FE34C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdvancedAnalyticsPlugin", "Plugins\AdvancedAnalyticsPlugin\AdvancedAnalyticsPlugin.csproj", "{A8F3D2C1-9B7E-4F5A-8C3D-2E6B9A4F1C8D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -14,6 +16,10 @@ Global
 		{6279E458-B829-AEBC-B668-77C2B69FE34C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6279E458-B829-AEBC-B668-77C2B69FE34C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6279E458-B829-AEBC-B668-77C2B69FE34C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A8F3D2C1-9B7E-4F5A-8C3D-2E6B9A4F1C8D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A8F3D2C1-9B7E-4F5A-8C3D-2E6B9A4F1C8D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A8F3D2C1-9B7E-4F5A-8C3D-2E6B9A4F1C8D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A8F3D2C1-9B7E-4F5A-8C3D-2E6B9A4F1C8D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
