@@ -64,6 +64,15 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.UI
         private Button exportPdfButton;
         private Button saveChartButton;
         private Label statusLabel;
+        private ProgressBar progressBar;
+
+        // Performance controls (in Data tab)
+        private GroupBox performanceGroupBox;
+        private Label maxRecordsLabel;
+        private NumericUpDown maxRecordsNumeric;
+        private Label maxChartPointsLabel;
+        private NumericUpDown maxChartPointsNumeric;
+        private CheckBox enableSamplingCheckBox;
 
         public MainAnalyticsForm()
         {
@@ -272,6 +281,80 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.UI
             aggregationComboBox.SelectedIndex = 0;
             aggregationGroupBox.Controls.Add(aggregationComboBox);
             panel.Controls.Add(aggregationGroupBox);
+            yPosition += 70;
+
+            // Performance Options
+            performanceGroupBox = new GroupBox
+            {
+                Text = "⚡ Optimización de Rendimiento",
+                Location = new Point(10, yPosition),
+                Size = new Size(300, 150),
+                ForeColor = Color.FromArgb(41, 128, 185)
+            };
+
+            var perfYPos = 25;
+
+            enableSamplingCheckBox = new CheckBox
+            {
+                Text = "Sampling inteligente",
+                Location = new Point(10, perfYPos),
+                Size = new Size(280, 20),
+                Checked = true
+            };
+            performanceGroupBox.Controls.Add(enableSamplingCheckBox);
+            perfYPos += 25;
+
+            maxRecordsLabel = new Label
+            {
+                Text = "Máx. registros a procesar:",
+                Location = new Point(10, perfYPos),
+                Size = new Size(180, 20)
+            };
+            performanceGroupBox.Controls.Add(maxRecordsLabel);
+
+            maxRecordsNumeric = new NumericUpDown
+            {
+                Location = new Point(200, perfYPos),
+                Size = new Size(80, 25),
+                Minimum = 0,
+                Maximum = 50000,
+                Value = 5000,
+                Increment = 500
+            };
+            performanceGroupBox.Controls.Add(maxRecordsNumeric);
+            perfYPos += 30;
+
+            var infoLabel1 = new Label
+            {
+                Text = "(0 = sin límite)",
+                Location = new Point(200, perfYPos),
+                Size = new Size(80, 15),
+                Font = new Font("Segoe UI", 7, FontStyle.Italic),
+                ForeColor = Color.Gray
+            };
+            performanceGroupBox.Controls.Add(infoLabel1);
+            perfYPos += 20;
+
+            maxChartPointsLabel = new Label
+            {
+                Text = "Máx. puntos en gráfica:",
+                Location = new Point(10, perfYPos),
+                Size = new Size(180, 20)
+            };
+            performanceGroupBox.Controls.Add(maxChartPointsLabel);
+
+            maxChartPointsNumeric = new NumericUpDown
+            {
+                Location = new Point(200, perfYPos),
+                Size = new Size(80, 25),
+                Minimum = 100,
+                Maximum = 10000,
+                Value = 1000,
+                Increment = 100
+            };
+            performanceGroupBox.Controls.Add(maxChartPointsNumeric);
+
+            panel.Controls.Add(performanceGroupBox);
 
             dataTabPage.Controls.Add(panel);
         }
@@ -538,11 +621,23 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.UI
             statusLabel = new Label
             {
                 Text = "Listo. Seleccione campos y ejecute el análisis.",
-                Location = new Point(470, 20),
-                Size = new Size(600, 25),
+                Location = new Point(470, 5),
+                Size = new Size(600, 20),
                 ForeColor = Color.FromArgb(100, 100, 100)
             };
             bottomPanel.Controls.Add(statusLabel);
+
+            progressBar = new ProgressBar
+            {
+                Location = new Point(470, 30),
+                Size = new Size(600, 20),
+                Style = ProgressBarStyle.Continuous,
+                Minimum = 0,
+                Maximum = 100,
+                Value = 0,
+                Visible = false
+            };
+            bottomPanel.Controls.Add(progressBar);
         }
 
         private void LoadAvailableFields()
@@ -598,10 +693,37 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.UI
         {
             try
             {
+                // Show progress bar
+                progressBar.Value = 0;
+                progressBar.Visible = true;
+
                 statusLabel.Text = "Ejecutando consulta...";
                 statusLabel.ForeColor = Color.Blue;
                 executeButton.Enabled = false;
                 this.Cursor = Cursors.WaitCursor;
+
+                // Configure query engine with performance settings
+                _queryEngine.MaxRecords = (int)maxRecordsNumeric.Value;
+                _queryEngine.MaxChartPoints = (int)maxChartPointsNumeric.Value;
+                _queryEngine.EnableSmartSampling = enableSamplingCheckBox.Checked;
+
+                // Set up progress callback
+                _queryEngine.ProgressCallback = (percentage, message) =>
+                {
+                    if (progressBar.InvokeRequired)
+                    {
+                        progressBar.Invoke(new Action(() =>
+                        {
+                            progressBar.Value = Math.Min(percentage, 100);
+                            statusLabel.Text = message;
+                        }));
+                    }
+                    else
+                    {
+                        progressBar.Value = Math.Min(percentage, 100);
+                        statusLabel.Text = message;
+                    }
+                };
 
                 // Build query configuration
                 var config = BuildQueryConfiguration();
@@ -617,7 +739,7 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.UI
                     return;
                 }
 
-                // Execute query
+                // Execute query asynchronously
                 _currentResult = await System.Threading.Tasks.Task.Run(() => _queryEngine.ExecuteQuery(config));
 
                 // Apply advanced analytics
@@ -643,8 +765,21 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.UI
                 // Render chart
                 RenderChart();
 
-                statusLabel.Text = $"Análisis completado. {_currentResult.TotalRecordsAnalyzed} registros procesados en {_currentResult.ExecutionTime.TotalMilliseconds:F2}ms";
+                // Build status message with sampling info
+                var statusMessage = $"✓ Análisis completado: {_currentResult.TotalRecordsAnalyzed} registros procesados en {_currentResult.ExecutionTime.TotalMilliseconds:F2}ms";
+
+                // Add sampling info if applicable
+                var sampledSeries = _currentResult.Series.Where(s => s.Metadata.ContainsKey("Sampled") && (bool)s.Metadata["Sampled"]).ToList();
+                if (sampledSeries.Any())
+                {
+                    var totalOriginal = sampledSeries.Sum(s => (int)s.Metadata["OriginalCount"]);
+                    var totalSampled = sampledSeries.Sum(s => (int)s.Metadata["SampledCount"]);
+                    statusMessage += $" | Optimizado: {totalOriginal} → {totalSampled} puntos ({(100.0 * totalSampled / totalOriginal):F1}%)";
+                }
+
+                statusLabel.Text = statusMessage;
                 statusLabel.ForeColor = Color.Green;
+                progressBar.Value = 100;
 
                 saveChartButton.Enabled = true;
                 exportPdfButton.Enabled = true;
@@ -660,11 +795,25 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.UI
 
                 statusLabel.Text = "Error al ejecutar análisis.";
                 statusLabel.ForeColor = Color.Red;
+                progressBar.Visible = false;
             }
             finally
             {
                 executeButton.Enabled = true;
                 this.Cursor = Cursors.Default;
+
+                // Hide progress bar after a short delay
+                System.Threading.Tasks.Task.Delay(2000).ContinueWith(_ =>
+                {
+                    if (progressBar.InvokeRequired)
+                    {
+                        progressBar.Invoke(new Action(() => progressBar.Visible = false));
+                    }
+                    else
+                    {
+                        progressBar.Visible = false;
+                    }
+                });
             }
         }
 

@@ -13,10 +13,34 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
 {
     /// <summary>
     /// Advanced data query engine for extracting and transforming database data
+    /// Optimized for large datasets (3000+ records)
     /// </summary>
     public class DataQueryEngine
     {
         private readonly Stopwatch _stopwatch = new Stopwatch();
+
+        /// <summary>
+        /// Maximum number of records to process. Set to 0 for unlimited.
+        /// Default: 5000 for performance
+        /// </summary>
+        public int MaxRecords { get; set; } = 5000;
+
+        /// <summary>
+        /// Maximum number of data points to display in charts.
+        /// Larger datasets will be intelligently sampled.
+        /// Default: 1000 for responsive charting
+        /// </summary>
+        public int MaxChartPoints { get; set; } = 1000;
+
+        /// <summary>
+        /// Enable intelligent data sampling for large datasets
+        /// </summary>
+        public bool EnableSmartSampling { get; set; } = true;
+
+        /// <summary>
+        /// Progress callback for long-running operations
+        /// </summary>
+        public Action<int, string>? ProgressCallback { get; set; }
 
         /// <summary>
         /// Gets all available fields (native + custom) for query building
@@ -138,18 +162,33 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
 
             try
             {
+                ReportProgress(0, "Conectando a la base de datos...");
+
                 using (var connection = DbConnection.GetConnection())
                 {
                     connection.Open();
+
+                    ReportProgress(10, "Cargando datos de clientes...");
 
                     // Get all clients with their data
                     var clientRepo = new ClientRepository();
                     var allClients = clientRepo.GetAllClients();
 
+                    ReportProgress(30, $"Procesando {allClients.Count} registros...");
+
                     // Apply filters
                     var filteredClients = ApplyFilters(allClients, config.Filters);
 
+                    // Apply MaxRecords limit if set
+                    if (MaxRecords > 0 && filteredClients.Count > MaxRecords)
+                    {
+                        ReportProgress(40, $"Limitando a {MaxRecords} registros...");
+                        filteredClients = filteredClients.Take(MaxRecords).ToList();
+                    }
+
                     result.TotalRecordsAnalyzed = filteredClients.Count;
+
+                    ReportProgress(50, "Construyendo series de datos...");
 
                     // Build data series based on configuration
                     if (!string.IsNullOrEmpty(config.GroupByField))
@@ -163,6 +202,8 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
                         result.Series.AddRange(BuildIndividualSeries(filteredClients, config));
                     }
 
+                    ReportProgress(80, "Aplicando agregaciones...");
+
                     // Apply aggregations if specified
                     foreach (var field in config.SelectedFields.Where(f => f.Aggregation.HasValue))
                     {
@@ -170,16 +211,24 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
                         if (series != null)
                             result.Series.Add(series);
                     }
+
+                    ReportProgress(100, "Consulta completada.");
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error executing query: {ex.Message}\n{ex.StackTrace}");
+                ReportProgress(100, "Error en la consulta.");
                 throw new Exception($"Error al ejecutar la consulta: {ex.Message}", ex);
             }
 
             _stopwatch.Stop();
             result.ExecutionTime = _stopwatch.Elapsed;
+
+            // Add metadata about performance
+            result.Metadata["MaxRecordsLimit"] = MaxRecords;
+            result.Metadata["MaxChartPointsLimit"] = MaxChartPoints;
+            result.Metadata["SmartSamplingEnabled"] = EnableSmartSampling;
 
             return result;
         }
@@ -352,11 +401,111 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
                     }
                 }
 
+                // Apply intelligent sampling if needed
+                if (EnableSmartSampling && series.Points.Count > MaxChartPoints)
+                {
+                    ReportProgress(50, $"Aplicando sampling inteligente a {series.Name}...");
+                    series = ApplyIntelligentSampling(series, MaxChartPoints);
+                }
+
                 if (series.Points.Any())
                     seriesList.Add(series);
             }
 
             return seriesList;
+        }
+
+        /// <summary>
+        /// Applies intelligent sampling to reduce data points while preserving trends
+        /// Uses LTTB (Largest Triangle Three Buckets) algorithm for optimal visualization
+        /// </summary>
+        private DataSeries ApplyIntelligentSampling(DataSeries series, int targetPoints)
+        {
+            if (series.Points.Count <= targetPoints)
+                return series;
+
+            var sampled = new DataSeries
+            {
+                Name = series.Name,
+                SourceField = series.SourceField,
+                Type = series.Type,
+                Color = series.Color,
+                Metadata = series.Metadata
+            };
+
+            // Always keep first and last points
+            sampled.Points.Add(series.Points.First());
+
+            // Calculate bucket size
+            double bucketSize = (double)(series.Points.Count - 2) / (targetPoints - 2);
+
+            // Sample middle points using LTTB algorithm
+            int pointIndex = 0;
+            for (int i = 0; i < targetPoints - 2; i++)
+            {
+                // Calculate average point in next bucket
+                int avgRangeStart = (int)Math.Floor((i + 1) * bucketSize) + 1;
+                int avgRangeEnd = (int)Math.Floor((i + 2) * bucketSize) + 1;
+                avgRangeEnd = Math.Min(avgRangeEnd, series.Points.Count);
+
+                double avgX = 0;
+                double avgY = 0;
+                int avgRangeLength = avgRangeEnd - avgRangeStart;
+
+                for (; avgRangeStart < avgRangeEnd; avgRangeStart++)
+                {
+                    avgX += avgRangeStart;
+                    avgY += series.Points[avgRangeStart].Value;
+                }
+                avgX /= avgRangeLength;
+                avgY /= avgRangeLength;
+
+                // Get range for current bucket
+                int rangeOffs = (int)Math.Floor((i + 0) * bucketSize) + 1;
+                int rangeTo = (int)Math.Floor((i + 1) * bucketSize) + 1;
+
+                // Point before
+                double pointAX = pointIndex;
+                double pointAY = series.Points[pointIndex].Value;
+
+                double maxArea = -1;
+                int maxAreaPoint = rangeOffs;
+
+                for (; rangeOffs < rangeTo; rangeOffs++)
+                {
+                    // Calculate triangle area
+                    double area = Math.Abs(
+                        (pointAX - avgX) * (series.Points[rangeOffs].Value - pointAY) -
+                        (pointAX - rangeOffs) * (avgY - pointAY)
+                    ) * 0.5;
+
+                    if (area > maxArea)
+                    {
+                        maxArea = area;
+                        maxAreaPoint = rangeOffs;
+                    }
+                }
+
+                sampled.Points.Add(series.Points[maxAreaPoint]);
+                pointIndex = maxAreaPoint;
+            }
+
+            sampled.Points.Add(series.Points.Last());
+
+            // Add metadata about sampling
+            sampled.Metadata["Sampled"] = true;
+            sampled.Metadata["OriginalCount"] = series.Points.Count;
+            sampled.Metadata["SampledCount"] = sampled.Points.Count;
+
+            return sampled;
+        }
+
+        /// <summary>
+        /// Reports progress to callback if configured
+        /// </summary>
+        private void ReportProgress(int percentage, string message)
+        {
+            ProgressCallback?.Invoke(percentage, message);
         }
 
         /// <summary>
