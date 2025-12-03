@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows7.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ReactCRM.Plugins.AdvancedAnalytics</RootNamespace>
+    <AssemblyName>AdvancedAnalyticsPlugin</AssemblyName>
+    <OutputType>Library</OutputType>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <!-- Include the IReactCrmPlugin interface directly in the build -->
+  <ItemGroup>
+    <Compile Include="Lib\IReactCrmPlugin.cs" />
+  </ItemGroup>
+
+  <!-- NuGet packages for advanced charting and PDF -->
+  <ItemGroup>
+    <PackageReference Include="QuestPDF" Version="2024.12.3" />
+    <PackageReference Include="ScottPlot.WinForms" Version="5.0.54" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+
+  <!-- Costura.Fody to merge all dependencies into single DLL automatically -->
+  <ItemGroup>
+    <PackageReference Include="Costura.Fody" Version="5.8.0">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Fody" Version="6.9.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>

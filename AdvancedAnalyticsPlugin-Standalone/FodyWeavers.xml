@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Weavers xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="FodyWeavers.xsd">
+  <Costura>
+    <!-- Embed all dependencies into single DLL -->
+    <IncludeAssemblies>
+      QuestPDF
+      ScottPlot
+      ScottPlot.WinForms
+      SkiaSharp
+      SkiaSharp.HarfBuzz
+      HarfBuzzSharp
+      SixLabors.Fonts
+    </IncludeAssemblies>
+
+    <!-- Don't embed these as they're already in the main application -->
+    <ExcludeAssemblies>
+      REACT CRM
+      Microsoft.Data.Sqlite
+      Newtonsoft.Json
+      System
+      mscorlib
+    </ExcludeAssemblies>
+
+    <!-- Embed native libraries -->
+    <Unmanaged32Assemblies />
+    <Unmanaged64Assemblies />
+
+    <!-- Clean up temporary files -->
+    <CreateTemporaryAssemblies>false</CreateTemporaryAssemblies>
+
+    <!-- Include debug symbols -->
+    <IncludeDebugSymbols>false</IncludeDebugSymbols>
+
+    <!-- Disable compression for faster loading -->
+    <DisableCompression>false</DisableCompression>
+
+    <!-- Don't include satellite assemblies -->
+    <IncludeSatelliteAssemblies>false</IncludeSatelliteAssemblies>
+  </Costura>
+</Weavers>
