@@ -10,7 +10,15 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<ApplicationIcon>logo\NEW REACT LOGO.ico</ApplicationIcon>
 		<GeneratePackageOnBuild>False</GeneratePackageOnBuild>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 	</PropertyGroup>
+
+	<!-- Exclude Plugins folder from compilation -->
+	<ItemGroup>
+		<Compile Remove="Plugins\**" />
+		<EmbeddedResource Remove="Plugins\**" />
+		<None Remove="Plugins\**" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<Folder Include="ClientFiles\" />
