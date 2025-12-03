@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using ScottPlot;
 using ScottPlot.Plottables;
 using ScottPlot.WinForms;
 using ReactCRM.Plugins.AdvancedAnalytics.Models;
+using DrawingColor = System.Drawing.Color;
 
 namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
 {
@@ -54,8 +54,8 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
             // Apply advanced features
             if (config.ShowGrid)
             {
-                _plot.Grid.MajorLineColor = Color.FromArgb(50, config.GridColor);
-                _plot.Grid.MinorLineColor = Color.FromArgb(25, config.GridColor);
+                _plot.Grid.MajorLineColor = ScottPlot.Color.FromColor(DrawingColor.FromArgb(50, config.GridColor));
+                _plot.Grid.MinorLineColor = ScottPlot.Color.FromColor(DrawingColor.FromArgb(25, config.GridColor));
             }
             else
             {
@@ -114,7 +114,7 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
         /// <summary>
         /// Renders line chart (ideal for trends, time series)
         /// </summary>
-        private void RenderLineSeries(DataSeries series, Color color)
+        private void RenderLineSeries(DataSeries series, ScottPlot.Color color)
         {
             double[] values = series.Points.Select(p => p.Value).ToArray();
             double[] positions = Enumerable.Range(0, series.Points.Count).Select(i => (double)i).ToArray();
@@ -139,7 +139,7 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
         /// <summary>
         /// Renders bar chart (ideal for comparisons, categorical data)
         /// </summary>
-        private void RenderBarSeries(DataSeries series, Color color)
+        private void RenderBarSeries(DataSeries series, ScottPlot.Color color)
         {
             double[] values = series.Points.Select(p => p.Value).ToArray();
             double[] positions = Enumerable.Range(0, series.Points.Count).Select(i => (double)i).ToArray();
@@ -148,7 +148,7 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
             foreach (var bar in bars.Bars)
             {
                 bar.FillColor = color;
-                bar.LineColor = Color.FromArgb(200, color);
+                bar.LineColor = color.WithAlpha(200);
                 bar.LineWidth = 1;
             }
             bars.LegendText = series.Name;
@@ -167,13 +167,13 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
         /// <summary>
         /// Renders area chart (emphasizes magnitude of change)
         /// </summary>
-        private void RenderAreaSeries(DataSeries series, Color color)
+        private void RenderAreaSeries(DataSeries series, ScottPlot.Color color)
         {
             double[] values = series.Points.Select(p => p.Value).ToArray();
             double[] positions = Enumerable.Range(0, series.Points.Count).Select(i => (double)i).ToArray();
 
             // Create filled area
-            var fillColor = Color.FromArgb(50, color);
+            var fillColor = color.WithAlpha(50);
             var lineColor = color;
 
             var line = _plot.Add.SignalXY(positions, values);
@@ -197,7 +197,7 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
         /// <summary>
         /// Renders scatter plot (shows correlation, distribution)
         /// </summary>
-        private void RenderScatterSeries(DataSeries series, Color color)
+        private void RenderScatterSeries(DataSeries series, ScottPlot.Color color)
         {
             double[] values = series.Points.Select(p => p.Value).ToArray();
             double[] positions = Enumerable.Range(0, series.Points.Count).Select(i => (double)i).ToArray();
@@ -213,7 +213,7 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
         /// Renders candlestick chart (stock market style OHLC)
         /// Note: This is a simplified version. For full OHLC, data needs Open/High/Low/Close values
         /// </summary>
-        private void RenderCandlestickSeries(DataSeries series, Color color)
+        private void RenderCandlestickSeries(DataSeries series, ScottPlot.Color color)
         {
             // For now, render as bars with error ranges
             // In a full implementation, this would use actual OHLC data
@@ -229,7 +229,7 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
                 return;
 
             var ma = series.CalculateMovingAverage(period);
-            RenderLineSeries(ma, Color.Orange);
+            RenderLineSeries(ma, ScottPlot.Color.FromHex("#FFA500")); // Orange
         }
 
         /// <summary>
@@ -250,7 +250,7 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
             double[] trendY = x.Select(xi => slope * xi + intercept).ToArray();
 
             var trendLine = _plot.Add.SignalXY(x, trendY);
-            trendLine.Color = Color.Red;
+            trendLine.Color = ScottPlot.Color.FromHex("#FF0000"); // Red
             trendLine.LineWidth = 2;
             trendLine.LinePattern = LinePattern.Dashed;
             trendLine.LegendText = $"{series.Name} (Tendencia)";
@@ -259,7 +259,7 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
         /// <summary>
         /// Adds horizontal reference line
         /// </summary>
-        public void AddReferenceLine(double value, string label, Color color)
+        public void AddReferenceLine(double value, string label, ScottPlot.Color color)
         {
             var line = _plot.Add.HorizontalLine(value);
             line.Color = color;
@@ -299,48 +299,48 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
 
         private void ApplyProfessionalStyle()
         {
-            _plot.FigureBackground.Color = Color.White;
-            _plot.DataBackground.Color = Color.White;
-            _plot.Grid.MajorLineColor = Color.FromArgb(200, 200, 200);
-            _plot.Axes.Color(Color.Black);
+            _plot.FigureBackground.Color = ScottPlot.Color.FromHex("#FFFFFF");
+            _plot.DataBackground.Color = ScottPlot.Color.FromHex("#FFFFFF");
+            _plot.Grid.MajorLineColor = ScottPlot.Color.FromColor(DrawingColor.FromArgb(200, 200, 200));
+            _plot.Axes.Color(ScottPlot.Color.FromHex("#000000"));
         }
 
         private void ApplyStockMarketStyle()
         {
             // Bloomberg/Yahoo Finance inspired style
-            _plot.FigureBackground.Color = Color.FromArgb(240, 240, 240);
-            _plot.DataBackground.Color = Color.White;
-            _plot.Grid.MajorLineColor = Color.FromArgb(220, 220, 220);
+            _plot.FigureBackground.Color = ScottPlot.Color.FromColor(DrawingColor.FromArgb(240, 240, 240));
+            _plot.DataBackground.Color = ScottPlot.Color.FromHex("#FFFFFF");
+            _plot.Grid.MajorLineColor = ScottPlot.Color.FromColor(DrawingColor.FromArgb(220, 220, 220));
             _plot.Grid.MajorLineWidth = 1;
-            _plot.Axes.Color(Color.FromArgb(60, 60, 60));
+            _plot.Axes.Color(ScottPlot.Color.FromColor(DrawingColor.FromArgb(60, 60, 60)));
         }
 
         private void ApplyScientificStyle()
         {
-            _plot.FigureBackground.Color = Color.White;
-            _plot.DataBackground.Color = Color.White;
-            _plot.Grid.MajorLineColor = Color.FromArgb(150, 150, 150);
-            _plot.Grid.MinorLineColor = Color.FromArgb(200, 200, 200);
-            _plot.Axes.Color(Color.Black);
+            _plot.FigureBackground.Color = ScottPlot.Color.FromHex("#FFFFFF");
+            _plot.DataBackground.Color = ScottPlot.Color.FromHex("#FFFFFF");
+            _plot.Grid.MajorLineColor = ScottPlot.Color.FromColor(DrawingColor.FromArgb(150, 150, 150));
+            _plot.Grid.MinorLineColor = ScottPlot.Color.FromColor(DrawingColor.FromArgb(200, 200, 200));
+            _plot.Axes.Color(ScottPlot.Color.FromHex("#000000"));
         }
 
         private void ApplyModernStyle()
         {
-            _plot.FigureBackground.Color = Color.FromArgb(250, 250, 250);
-            _plot.DataBackground.Color = Color.White;
-            _plot.Grid.MajorLineColor = Color.FromArgb(200, 220, 240);
-            _plot.Axes.Color(Color.FromArgb(80, 80, 80));
+            _plot.FigureBackground.Color = ScottPlot.Color.FromColor(DrawingColor.FromArgb(250, 250, 250));
+            _plot.DataBackground.Color = ScottPlot.Color.FromHex("#FFFFFF");
+            _plot.Grid.MajorLineColor = ScottPlot.Color.FromColor(DrawingColor.FromArgb(200, 220, 240));
+            _plot.Axes.Color(ScottPlot.Color.FromColor(DrawingColor.FromArgb(80, 80, 80)));
         }
 
         private void ApplyDarkStyle()
         {
-            _plot.FigureBackground.Color = Color.FromArgb(30, 30, 30);
-            _plot.DataBackground.Color = Color.FromArgb(40, 40, 40);
-            _plot.Grid.MajorLineColor = Color.FromArgb(60, 60, 60);
-            _plot.Axes.Color(Color.FromArgb(200, 200, 200));
-            _plot.Axes.Title.Label.ForeColor = Color.White;
-            _plot.Axes.Bottom.Label.ForeColor = Color.White;
-            _plot.Axes.Left.Label.ForeColor = Color.White;
+            _plot.FigureBackground.Color = ScottPlot.Color.FromColor(DrawingColor.FromArgb(30, 30, 30));
+            _plot.DataBackground.Color = ScottPlot.Color.FromColor(DrawingColor.FromArgb(40, 40, 40));
+            _plot.Grid.MajorLineColor = ScottPlot.Color.FromColor(DrawingColor.FromArgb(60, 60, 60));
+            _plot.Axes.Color(ScottPlot.Color.FromColor(DrawingColor.FromArgb(200, 200, 200)));
+            _plot.Axes.Title.Label.ForeColor = DrawingColor.White;
+            _plot.Axes.Bottom.Label.ForeColor = DrawingColor.White;
+            _plot.Axes.Left.Label.ForeColor = DrawingColor.White;
         }
 
         /// <summary>
@@ -361,7 +361,7 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
 
         // Helper methods
 
-        private Color ParseColor(string hexColor)
+        private ScottPlot.Color ParseColor(string hexColor)
         {
             try
             {
@@ -373,7 +373,7 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
                     int r = Convert.ToInt32(hexColor.Substring(0, 2), 16);
                     int g = Convert.ToInt32(hexColor.Substring(2, 2), 16);
                     int b = Convert.ToInt32(hexColor.Substring(4, 2), 16);
-                    return Color.FromArgb(r, g, b);
+                    return ScottPlot.Color.FromColor(DrawingColor.FromArgb(r, g, b));
                 }
             }
             catch
@@ -381,7 +381,7 @@ namespace ReactCRM.Plugins.AdvancedAnalytics.Engine
                 // Fall back to default color
             }
 
-            return Color.FromArgb(52, 152, 219); // Default blue
+            return ScottPlot.Color.FromColor(DrawingColor.FromArgb(52, 152, 219)); // Default blue
         }
 
         private (double slope, double intercept) CalculateLinearRegression(double[] x, double[] y)

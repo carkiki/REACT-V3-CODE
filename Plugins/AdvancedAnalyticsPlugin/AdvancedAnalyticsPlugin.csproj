@@ -12,10 +12,9 @@
 
   <!-- Reference to main CRM project for interfaces and repositories -->
   <ItemGroup>
-    <Reference Include="REACT CRM">
-      <HintPath>..\..\bin\Debug\net10.0-windows7.0\REACT CRM.dll</HintPath>
+    <ProjectReference Include="..\..\REACT CRM.csproj">
       <Private>false</Private>
-    </Reference>
+    </ProjectReference>
   </ItemGroup>
 
   <!-- NuGet packages for advanced charting and PDF -->
