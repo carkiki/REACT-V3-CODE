@@ -505,8 +505,26 @@ namespace ReactCRM.UI.Clients
             var form = new ClientEditForm();
             if (form.ShowDialog() == DialogResult.OK)
             {
+                // Guardar posición del scroll
+                int scrollPosition = gridClients.FirstDisplayedScrollingRowIndex;
+                int selectedRowIndex = gridClients.SelectedRows.Count > 0 ? gridClients.SelectedRows[0].Index : -1;
+
                 InvalidateCache();
-                _ = LoadClientsAsync();
+                _ = LoadClientsAsync().ContinueWith(t =>
+                {
+                    // Restaurar posición del scroll
+                    this.Invoke((MethodInvoker)delegate
+                    {
+                        if (scrollPosition >= 0 && scrollPosition < gridClients.Rows.Count)
+                        {
+                            gridClients.FirstDisplayedScrollingRowIndex = scrollPosition;
+                        }
+                        if (selectedRowIndex >= 0 && selectedRowIndex < gridClients.Rows.Count)
+                        {
+                            gridClients.Rows[selectedRowIndex].Selected = true;
+                        }
+                    });
+                });
             }
         }
 
@@ -531,11 +549,29 @@ namespace ReactCRM.UI.Clients
 
             if (client != null)
             {
+                // Guardar posición del scroll
+                int scrollPosition = gridClients.FirstDisplayedScrollingRowIndex;
+                int selectedRowIndex = gridClients.SelectedRows[0].Index;
+
                 var form = new ClientEditForm(client);
                 if (form.ShowDialog() == DialogResult.OK)
                 {
                     InvalidateCache();
-                    _ = LoadClientsAsync();
+                    _ = LoadClientsAsync().ContinueWith(t =>
+                    {
+                        // Restaurar posición del scroll
+                        this.Invoke((MethodInvoker)delegate
+                        {
+                            if (scrollPosition >= 0 && scrollPosition < gridClients.Rows.Count)
+                            {
+                                gridClients.FirstDisplayedScrollingRowIndex = scrollPosition;
+                            }
+                            if (selectedRowIndex >= 0 && selectedRowIndex < gridClients.Rows.Count)
+                            {
+                                gridClients.Rows[selectedRowIndex].Selected = true;
+                            }
+                        });
+                    });
                 }
             }
         }
@@ -558,6 +594,8 @@ namespace ReactCRM.UI.Clients
 
             int clientId = (int)gridClients.SelectedRows[0].Cells["Id"].Value;
             string clientName = gridClients.SelectedRows[0].Cells["Name"].Value.ToString();
+            int selectedRowIndex = gridClients.SelectedRows[0].Index;
+            int scrollPosition = gridClients.FirstDisplayedScrollingRowIndex;
 
             var result = MessageBox.Show(
                 $"Are you sure you want to delete client '{clientName}'?\n\nThis will also delete all associated files and history.",
@@ -576,7 +614,22 @@ namespace ReactCRM.UI.Clients
                         MessageBox.Show("Client deleted successfully.", "Success",
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
                         InvalidateCache();
-                        _ = LoadClientsAsync();
+                        _ = LoadClientsAsync().ContinueWith(t =>
+                        {
+                            // Restaurar posición del scroll (ajustado por fila eliminada)
+                            this.Invoke((MethodInvoker)delegate
+                            {
+                                int adjustedIndex = selectedRowIndex > 0 ? selectedRowIndex - 1 : 0;
+                                if (scrollPosition >= 0 && scrollPosition < gridClients.Rows.Count)
+                                {
+                                    gridClients.FirstDisplayedScrollingRowIndex = scrollPosition;
+                                }
+                                if (adjustedIndex >= 0 && adjustedIndex < gridClients.Rows.Count)
+                                {
+                                    gridClients.Rows[adjustedIndex].Selected = true;
+                                }
+                            });
+                        });
                     }
                 }
                 catch (Exception ex)
@@ -1440,7 +1493,7 @@ namespace ReactCRM.UI.Clients
             txtPhone.Text = client.Phone;
             txtEmail.Text = client.Email;
             cmbStatus.Text = client.GetExtraDataValue("Status") ?? "Active";
-            txtNotes.Text = client.GetExtraDataValue("Notes") ?? "";  // Cargar notas
+            txtNotes.Text = client.Notes ?? "";  // FIX: Usar campo directo Notes
 
             // Cargar fecha de nota
             var noteDateStr = client.GetExtraDataValue("NoteDate");
@@ -1574,10 +1627,10 @@ namespace ReactCRM.UI.Clients
             client.DOB = dtpDOB.Value.Date;
             client.Phone = txtPhone.Text.Trim();
             client.Email = txtEmail.Text.Trim();
+            client.Notes = txtNotes.Text.Trim();  // FIX: Guardar en campo directo Notes
 
             client.SetExtraDataValue("Address", txtAddress.Text.Trim());
             client.SetExtraDataValue("Status", cmbStatus.Text);
-            client.SetExtraDataValue("Notes", txtNotes.Text.Trim());
             client.SetExtraDataValue("NoteDate", dtpNoteDate.Value.ToString("yyyy-MM-dd"));
 
             foreach (var field in customFields)
