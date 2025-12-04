@@ -89,9 +89,21 @@ namespace ReactCRM.Database
 
             try
             {
+                // If TabId is not set, get the default tab
+                if (!client.TabId.HasValue || client.TabId.Value == 0)
+                {
+                    using var getTabCmd = new SqliteCommand(
+                        "SELECT Id FROM ClientTabs WHERE IsDefault = 1 LIMIT 1", connection, transaction);
+                    var defaultTabId = getTabCmd.ExecuteScalar();
+                    if (defaultTabId != null)
+                    {
+                        client.TabId = Convert.ToInt32(defaultTabId);
+                    }
+                }
+
                 string sql = @"
-                    INSERT INTO Clients (SSN, Name, DOB, Phone, Email, Notes, ExtraData, CreatedBy, UpdatedBy)
-                    VALUES (@ssn, @name, @dob, @phone, @email, @notes, @extraData, @userId, @userId);
+                    INSERT INTO Clients (SSN, Name, DOB, Phone, Email, Notes, TabId, ExtraData, CreatedBy, UpdatedBy)
+                    VALUES (@ssn, @name, @dob, @phone, @email, @notes, @tabId, @extraData, @userId, @userId);
                     SELECT last_insert_rowid();";
 
                 using var cmd = new SqliteCommand(sql, connection, transaction);
@@ -101,6 +113,7 @@ namespace ReactCRM.Database
                 cmd.Parameters.AddWithValue("@phone", client.Phone ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("@email", client.Email ?? (object)DBNull.Value);
                 cmd.Parameters.AddWithValue("@notes", client.Notes ?? (object)DBNull.Value);
+                cmd.Parameters.AddWithValue("@tabId", client.TabId ?? (object)DBNull.Value);
 
                 // Serialize ExtraData with explicit settings to preserve empty strings
                 string extraDataJson = JsonConvert.SerializeObject(
@@ -449,36 +462,26 @@ namespace ReactCRM.Database
                 }
             }
 
-            return client;
-            // Map upload link fields (may not exist in older DBs)
-
-            try
-
+            // Map TabId field (may not exist in older DBs)
+            if (HasColumn(reader, "TabId") && reader["TabId"] != DBNull.Value)
             {
-
-                if (HasColumn(reader, "UploadToken") && reader["UploadToken"] != DBNull.Value)
-
-                {
-
-                    client.UploadToken = reader["UploadToken"].ToString();
-
-                }
-
-
-
-                if (HasColumn(reader, "UploadLinkExpires") && reader["UploadLinkExpires"] != DBNull.Value)
-
-                {
-
-                    client.UploadLinkExpires = Convert.ToDateTime(reader["UploadLinkExpires"]);
-
-                }
-
+                client.TabId = Convert.ToInt32(reader["TabId"]);
             }
 
+            // Map upload link fields (may not exist in older DBs)
+            try
+            {
+                if (HasColumn(reader, "UploadToken") && reader["UploadToken"] != DBNull.Value)
+                {
+                    client.UploadToken = reader["UploadToken"].ToString();
+                }
+
+                if (HasColumn(reader, "UploadLinkExpires") && reader["UploadLinkExpires"] != DBNull.Value)
+                {
+                    client.UploadLinkExpires = Convert.ToDateTime(reader["UploadLinkExpires"]);
+                }
+            }
             catch { /* Column may not exist yet */ }
-
-
 
             return client;
 
@@ -501,6 +504,91 @@ namespace ReactCRM.Database
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Get all clients filtered by tab ID
+        /// </summary>
+        public List<Client> GetClientsByTab(int tabId)
+        {
+            var clients = new List<Client>();
+            using var connection = DbConnection.GetConnection();
+            connection.Open();
+
+            string sql = @"
+                SELECT c.*, w.Username as CreatedByName, w2.Username as UpdatedByName
+                FROM Clients c
+                LEFT JOIN Workers w ON c.CreatedBy = w.Id
+                LEFT JOIN Workers w2 ON c.UpdatedBy = w2.Id
+                WHERE c.TabId = @tabId
+                ORDER BY c.Name";
+
+            using var cmd = new SqliteCommand(sql, connection);
+            cmd.Parameters.AddWithValue("@tabId", tabId);
+            using var reader = cmd.ExecuteReader();
+
+            while (reader.Read())
+            {
+                clients.Add(MapReaderToClient(reader));
+            }
+
+            return clients;
+        }
+
+        /// <summary>
+        /// Move a client to a different tab
+        /// </summary>
+        public void MoveClientToTab(int clientId, int tabId, int userId)
+        {
+            using var connection = DbConnection.GetConnection();
+            connection.Open();
+
+            string sql = @"
+                UPDATE Clients
+                SET TabId = @tabId, UpdatedBy = @userId, LastUpdated = @lastUpdated
+                WHERE Id = @clientId";
+
+            using var cmd = new SqliteCommand(sql, connection);
+            cmd.Parameters.AddWithValue("@tabId", tabId);
+            cmd.Parameters.AddWithValue("@userId", userId);
+            cmd.Parameters.AddWithValue("@lastUpdated", DateTime.Now);
+            cmd.Parameters.AddWithValue("@clientId", clientId);
+            cmd.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Move multiple clients to a different tab
+        /// </summary>
+        public void MoveClientsToTab(List<int> clientIds, int tabId, int userId)
+        {
+            using var connection = DbConnection.GetConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            try
+            {
+                foreach (int clientId in clientIds)
+                {
+                    string sql = @"
+                        UPDATE Clients
+                        SET TabId = @tabId, UpdatedBy = @userId, LastUpdated = @lastUpdated
+                        WHERE Id = @clientId";
+
+                    using var cmd = new SqliteCommand(sql, connection, transaction);
+                    cmd.Parameters.AddWithValue("@tabId", tabId);
+                    cmd.Parameters.AddWithValue("@userId", userId);
+                    cmd.Parameters.AddWithValue("@lastUpdated", DateTime.Now);
+                    cmd.Parameters.AddWithValue("@clientId", clientId);
+                    cmd.ExecuteNonQuery();
+                }
+
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
         }
     }
 }
