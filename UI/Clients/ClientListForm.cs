@@ -16,6 +16,7 @@ namespace ReactCRM.UI.Clients
 {
     public partial class ClientListForm : Form
     {
+        private TabControl tabControl;
         private DataGridView gridClients;
         private TextBox txtSearch;
         private Button btnAdd;
@@ -23,14 +24,21 @@ namespace ReactCRM.UI.Clients
         private Button btnDelete;
         private Button btnRefresh;
         private Button btnClose;
+        private Button btnNewTab;
+        private Button btnRenameTab;
+        private Button btnDeleteTab;
+        private Button btnMoveToTab;
         private Label lblTotal;
         private ClientRepository repository;
+        private ClientTabRepository tabRepository;
         private CustomFieldRepository customFieldRepository;
         private List<CustomField> customFields;
+        private List<ClientTab> clientTabs;
+        private int currentTabId;
 
-        // ===== CACHE EN MEMORIA =====
-        private static List<Client> cachedClients = null;
-        private static DateTime? cacheLoadedAt = null;
+        // ===== CACHE EN MEMORIA (per tab) =====
+        private static Dictionary<int, List<Client>> cachedClientsByTab = new Dictionary<int, List<Client>>();
+        private static Dictionary<int, DateTime> cacheLoadedAtByTab = new Dictionary<int, DateTime>();
         private static readonly object cacheLock = new object();
 
         // ===== CONFIGURACIÓN DE COLUMNAS =====
@@ -41,38 +49,40 @@ namespace ReactCRM.UI.Clients
         public ClientListForm()
         {
             repository = new ClientRepository();
+            tabRepository = new ClientTabRepository();
             customFieldRepository = new CustomFieldRepository();
             customFields = customFieldRepository.GetAll() ?? new List<CustomField>();
 
-            // Pre-cargar caché en background si no está cargado
-            if (cachedClients == null)
-            {
-                System.Diagnostics.Debug.WriteLine("Pre-loading cache in background...");
-                _ = Task.Run(() => PreLoadCache());
-            }
+            // Ensure default tab exists
+            tabRepository.EnsureDefaultTabExists(AuthService.Instance.GetCurrentUserId());
+
+            // Load tabs
+            clientTabs = tabRepository.GetAllTabs();
+            currentTabId = clientTabs.FirstOrDefault(t => t.IsDefault)?.Id ?? clientTabs[0].Id;
 
             InitializeComponent();
-            _ = LoadClientsAsync();
+            InitializeTabs();
         }
 
-        private void PreLoadCache()
+        private void PreLoadCacheForTab(int tabId)
         {
             try
             {
                 lock (cacheLock)
                 {
-                    if (cachedClients == null)
+                    if (!cachedClientsByTab.ContainsKey(tabId))
                     {
-                        System.Diagnostics.Debug.WriteLine("Loading cache in background...");
-                        cachedClients = repository.GetAllClients();
-                        cacheLoadedAt = DateTime.Now;
-                        System.Diagnostics.Debug.WriteLine($"Background cache loaded: {cachedClients.Count} clients");
+                        System.Diagnostics.Debug.WriteLine($"Loading cache for tab {tabId} in background...");
+                        var clients = repository.GetClientsByTab(tabId);
+                        cachedClientsByTab[tabId] = clients;
+                        cacheLoadedAtByTab[tabId] = DateTime.Now;
+                        System.Diagnostics.Debug.WriteLine($"Background cache loaded for tab {tabId}: {clients.Count} clients");
                     }
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error pre-loading cache: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error pre-loading cache for tab {tabId}: {ex.Message}");
             }
         }
 
@@ -80,8 +90,17 @@ namespace ReactCRM.UI.Clients
         {
             lock (cacheLock)
             {
-                cachedClients = null;
-                cacheLoadedAt = null;
+                cachedClientsByTab.Clear();
+                cacheLoadedAtByTab.Clear();
+            }
+        }
+
+        public static void InvalidateCacheForTab(int tabId)
+        {
+            lock (cacheLock)
+            {
+                cachedClientsByTab.Remove(tabId);
+                cacheLoadedAtByTab.Remove(tabId);
             }
         }
 
@@ -102,9 +121,84 @@ namespace ReactCRM.UI.Clients
         private void InitializeComponent()
         {
             this.Text = "Client Management";
-            this.Size = new Size(1200, 700);
+            this.Size = new Size(1200, 750);
             this.StartPosition = FormStartPosition.CenterParent;
-            this.MinimumSize = new Size(800, 500);
+            this.MinimumSize = new Size(800, 600);
+
+            // Tab Control for client tabs
+            tabControl = new TabControl
+            {
+                Dock = DockStyle.Top,
+                Height = 30,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold)
+            };
+            tabControl.Selected += TabControl_Selected;
+
+            // Tab Management Panel
+            var panelTabManagement = new Panel
+            {
+                Dock = DockStyle.Top,
+                Height = 45,
+                BackColor = Color.FromArgb(236, 240, 241),
+                Padding = new Padding(5)
+            };
+
+            btnNewTab = new Button
+            {
+                Text = "+ New Tab",
+                Location = new Point(10, 8),
+                Size = new Size(90, 30),
+                BackColor = Color.FromArgb(46, 204, 113),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9),
+                Cursor = Cursors.Hand
+            };
+            btnNewTab.Click += BtnNewTab_Click;
+
+            btnRenameTab = new Button
+            {
+                Text = "Rename Tab",
+                Location = new Point(110, 8),
+                Size = new Size(100, 30),
+                BackColor = Color.FromArgb(241, 196, 15),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9),
+                Cursor = Cursors.Hand
+            };
+            btnRenameTab.Click += BtnRenameTab_Click;
+
+            btnDeleteTab = new Button
+            {
+                Text = "Delete Tab",
+                Location = new Point(220, 8),
+                Size = new Size(100, 30),
+                BackColor = Color.FromArgb(231, 76, 60),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9),
+                Cursor = Cursors.Hand
+            };
+            btnDeleteTab.Click += BtnDeleteTab_Click;
+
+            btnMoveToTab = new Button
+            {
+                Text = "Move to Tab...",
+                Location = new Point(330, 8),
+                Size = new Size(110, 30),
+                BackColor = Color.FromArgb(155, 89, 182),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9),
+                Cursor = Cursors.Hand
+            };
+            btnMoveToTab.Click += BtnMoveToTab_Click;
+
+            panelTabManagement.Controls.Add(btnNewTab);
+            panelTabManagement.Controls.Add(btnRenameTab);
+            panelTabManagement.Controls.Add(btnDeleteTab);
+            panelTabManagement.Controls.Add(btnMoveToTab);
 
             // Search Panel
             var panelSearch = new Panel
@@ -245,6 +339,8 @@ namespace ReactCRM.UI.Clients
 
             this.Controls.Add(gridClients);
             this.Controls.Add(panelSearch);
+            this.Controls.Add(panelTabManagement);
+            this.Controls.Add(tabControl);
             this.Controls.Add(panelBottom);
 
             if (!AuthService.Instance.CanEditClients())
@@ -252,6 +348,216 @@ namespace ReactCRM.UI.Clients
                 btnAdd.Enabled = false;
                 btnEdit.Enabled = false;
                 btnDelete.Enabled = false;
+                btnNewTab.Enabled = false;
+                btnRenameTab.Enabled = false;
+                btnDeleteTab.Enabled = false;
+                btnMoveToTab.Enabled = false;
+            }
+        }
+
+        private void InitializeTabs()
+        {
+            tabControl.TabPages.Clear();
+            foreach (var tab in clientTabs)
+            {
+                var tabPage = new TabPage(tab.Name)
+                {
+                    Tag = tab.Id
+                };
+                tabControl.TabPages.Add(tabPage);
+            }
+
+            // Select the current tab
+            for (int i = 0; i < tabControl.TabPages.Count; i++)
+            {
+                if ((int)tabControl.TabPages[i].Tag == currentTabId)
+                {
+                    tabControl.SelectedIndex = i;
+                    break;
+                }
+            }
+
+            _ = LoadClientsAsync();
+        }
+
+        private void TabControl_Selected(object sender, TabControlEventArgs e)
+        {
+            if (e.TabPage != null && e.TabPage.Tag is int tabId)
+            {
+                currentTabId = tabId;
+                _ = LoadClientsAsync();
+            }
+        }
+
+        private void BtnNewTab_Click(object sender, EventArgs e)
+        {
+            using (var inputForm = new Form())
+            {
+                inputForm.Text = "New Tab";
+                inputForm.Size = new Size(400, 150);
+                inputForm.StartPosition = FormStartPosition.CenterParent;
+                inputForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                inputForm.MaximizeBox = false;
+                inputForm.MinimizeBox = false;
+
+                var lblName = new Label { Text = "Tab Name:", Location = new Point(15, 20), AutoSize = true };
+                var txtName = new TextBox { Location = new Point(15, 45), Width = 350 };
+                var btnOk = new Button { Text = "Create", Location = new Point(200, 80), DialogResult = DialogResult.OK };
+                var btnCancel = new Button { Text = "Cancel", Location = new Point(290, 80), DialogResult = DialogResult.Cancel };
+
+                inputForm.Controls.AddRange(new Control[] { lblName, txtName, btnOk, btnCancel });
+                inputForm.AcceptButton = btnOk;
+                inputForm.CancelButton = btnCancel;
+
+                if (inputForm.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(txtName.Text))
+                {
+                    int userId = AuthService.Instance.GetCurrentUserId();
+                    int newTabId = tabRepository.CreateTab(txtName.Text.Trim(), userId);
+                    clientTabs = tabRepository.GetAllTabs();
+                    currentTabId = newTabId;
+                    InitializeTabs();
+                    MessageBox.Show("Tab created successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+        }
+
+        private void BtnRenameTab_Click(object sender, EventArgs e)
+        {
+            var currentTab = clientTabs.FirstOrDefault(t => t.Id == currentTabId);
+            if (currentTab == null) return;
+
+            if (currentTab.IsDefault)
+            {
+                MessageBox.Show("Cannot rename the default tab.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            using (var inputForm = new Form())
+            {
+                inputForm.Text = "Rename Tab";
+                inputForm.Size = new Size(400, 150);
+                inputForm.StartPosition = FormStartPosition.CenterParent;
+                inputForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                inputForm.MaximizeBox = false;
+                inputForm.MinimizeBox = false;
+
+                var lblName = new Label { Text = "New Tab Name:", Location = new Point(15, 20), AutoSize = true };
+                var txtName = new TextBox { Location = new Point(15, 45), Width = 350, Text = currentTab.Name };
+                var btnOk = new Button { Text = "Rename", Location = new Point(200, 80), DialogResult = DialogResult.OK };
+                var btnCancel = new Button { Text = "Cancel", Location = new Point(290, 80), DialogResult = DialogResult.Cancel };
+
+                inputForm.Controls.AddRange(new Control[] { lblName, txtName, btnOk, btnCancel });
+                inputForm.AcceptButton = btnOk;
+                inputForm.CancelButton = btnCancel;
+
+                if (inputForm.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(txtName.Text))
+                {
+                    tabRepository.UpdateTabName(currentTabId, txtName.Text.Trim());
+                    clientTabs = tabRepository.GetAllTabs();
+                    InitializeTabs();
+                    MessageBox.Show("Tab renamed successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+        }
+
+        private void BtnDeleteTab_Click(object sender, EventArgs e)
+        {
+            var currentTab = clientTabs.FirstOrDefault(t => t.Id == currentTabId);
+            if (currentTab == null) return;
+
+            if (currentTab.IsDefault)
+            {
+                MessageBox.Show("Cannot delete the default tab.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int clientCount = tabRepository.GetClientCount(currentTabId);
+            var result = MessageBox.Show(
+                $"Are you sure you want to delete the tab '{currentTab.Name}'?\n\n" +
+                $"This tab has {clientCount} client(s). All clients will be moved to the default tab.",
+                "Confirm Delete",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (result == DialogResult.Yes)
+            {
+                try
+                {
+                    tabRepository.DeleteTab(currentTabId);
+                    clientTabs = tabRepository.GetAllTabs();
+                    currentTabId = clientTabs.FirstOrDefault(t => t.IsDefault)?.Id ?? clientTabs[0].Id;
+                    InvalidateCache();
+                    InitializeTabs();
+                    MessageBox.Show("Tab deleted successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error deleting tab: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void BtnMoveToTab_Click(object sender, EventArgs e)
+        {
+            if (gridClients.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("Please select client(s) to move.", "No Selection", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Create dialog to select target tab
+            using (var selectForm = new Form())
+            {
+                selectForm.Text = "Move to Tab";
+                selectForm.Size = new Size(400, 180);
+                selectForm.StartPosition = FormStartPosition.CenterParent;
+                selectForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+                selectForm.MaximizeBox = false;
+                selectForm.MinimizeBox = false;
+
+                var lblTab = new Label { Text = "Select Target Tab:", Location = new Point(15, 20), AutoSize = true };
+                var cmbTabs = new ComboBox
+                {
+                    Location = new Point(15, 45),
+                    Width = 350,
+                    DropDownStyle = ComboBoxStyle.DropDownList
+                };
+
+                foreach (var tab in clientTabs.Where(t => t.Id != currentTabId))
+                {
+                    cmbTabs.Items.Add(new { Text = tab.Name, Value = tab.Id });
+                }
+                cmbTabs.DisplayMember = "Text";
+                cmbTabs.ValueMember = "Value";
+                if (cmbTabs.Items.Count > 0) cmbTabs.SelectedIndex = 0;
+
+                var btnOk = new Button { Text = "Move", Location = new Point(200, 100), DialogResult = DialogResult.OK };
+                var btnCancel = new Button { Text = "Cancel", Location = new Point(290, 100), DialogResult = DialogResult.Cancel };
+
+                selectForm.Controls.AddRange(new Control[] { lblTab, cmbTabs, btnOk, btnCancel });
+                selectForm.AcceptButton = btnOk;
+                selectForm.CancelButton = btnCancel;
+
+                if (selectForm.ShowDialog() == DialogResult.OK && cmbTabs.SelectedItem != null)
+                {
+                    dynamic selectedItem = cmbTabs.SelectedItem;
+                    int targetTabId = selectedItem.Value;
+
+                    var clientIds = new List<int>();
+                    foreach (DataGridViewRow row in gridClients.SelectedRows)
+                    {
+                        clientIds.Add((int)row.Cells["Id"].Value);
+                    }
+
+                    int userId = AuthService.Instance.GetCurrentUserId();
+                    repository.MoveClientsToTab(clientIds, targetTabId, userId);
+
+                    InvalidateCacheForTab(currentTabId);
+                    InvalidateCacheForTab(targetTabId);
+                    _ = LoadClientsAsync(forceReload: true);
+
+                    MessageBox.Show($"{clientIds.Count} client(s) moved successfully!", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
             }
         }
 
@@ -267,18 +573,19 @@ namespace ReactCRM.UI.Clients
                 {
                     lock (cacheLock)
                     {
-                        if (cachedClients != null && !forceReload)
+                        if (cachedClientsByTab.ContainsKey(currentTabId) && !forceReload)
                         {
-                            System.Diagnostics.Debug.WriteLine($"Using cached clients ({cachedClients.Count} clients)");
-                            return cachedClients;
+                            System.Diagnostics.Debug.WriteLine($"Using cached clients for tab {currentTabId} ({cachedClientsByTab[currentTabId].Count} clients)");
+                            return cachedClientsByTab[currentTabId];
                         }
 
-                        System.Diagnostics.Debug.WriteLine("Loading clients from database...");
+                        System.Diagnostics.Debug.WriteLine($"Loading clients from database for tab {currentTabId}...");
                         customFields = customFieldRepository.GetAll() ?? new List<CustomField>();
-                        cachedClients = repository.GetAllClients();
-                        cacheLoadedAt = DateTime.Now;
-                        System.Diagnostics.Debug.WriteLine($"Loaded {cachedClients.Count} clients");
-                        return cachedClients;
+                        var tabClients = repository.GetClientsByTab(currentTabId);
+                        cachedClientsByTab[currentTabId] = tabClients;
+                        cacheLoadedAtByTab[currentTabId] = DateTime.Now;
+                        System.Diagnostics.Debug.WriteLine($"Loaded {tabClients.Count} clients for tab {currentTabId}");
+                        return tabClients;
                     }
                 });
 
@@ -392,14 +699,14 @@ namespace ReactCRM.UI.Clients
 
             try
             {
-                if (cachedClients == null)
+                if (!cachedClientsByTab.ContainsKey(currentTabId))
                 {
                     _ = LoadClientsAsync();
                     return;
                 }
 
                 string searchTerm = txtSearch.Text.ToLower();
-                var clients = cachedClients.AsParallel()
+                var clients = cachedClientsByTab[currentTabId].AsParallel()
                     .WithDegreeOfParallelism(Environment.ProcessorCount)
                     .Where(c =>
                         (c.SSN?.ToLower().Contains(searchTerm) ?? false) ||
@@ -502,14 +809,14 @@ namespace ReactCRM.UI.Clients
                 return;
             }
 
-            var form = new ClientEditForm();
+            var form = new ClientEditForm(currentTabId);
             if (form.ShowDialog() == DialogResult.OK)
             {
                 // Guardar posición del scroll
                 int scrollPosition = gridClients.FirstDisplayedScrollingRowIndex;
                 int selectedRowIndex = gridClients.SelectedRows.Count > 0 ? gridClients.SelectedRows[0].Index : -1;
 
-                InvalidateCache();
+                InvalidateCacheForTab(currentTabId);
                 _ = LoadClientsAsync().ContinueWith(t =>
                 {
                     // Restaurar posición del scroll
@@ -556,7 +863,7 @@ namespace ReactCRM.UI.Clients
                 var form = new ClientEditForm(client);
                 if (form.ShowDialog() == DialogResult.OK)
                 {
-                    InvalidateCache();
+                    InvalidateCacheForTab(currentTabId);
                     _ = LoadClientsAsync().ContinueWith(t =>
                     {
                         // Restaurar posición del scroll
@@ -613,7 +920,7 @@ namespace ReactCRM.UI.Clients
                     {
                         MessageBox.Show("Client deleted successfully.", "Success",
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        InvalidateCache();
+                        InvalidateCacheForTab(currentTabId);
                         _ = LoadClientsAsync().ContinueWith(t =>
                         {
                             // Restaurar posición del scroll (ajustado por fila eliminada)
@@ -750,6 +1057,12 @@ namespace ReactCRM.UI.Clients
 
             InitializeComponent();
             LoadClientData();
+        }
+
+        public ClientEditForm(int tabId) : this()
+        {
+            // Set the tabId for the new client
+            this.client.TabId = tabId;
         }
 
         public ClientEditForm(Client client)

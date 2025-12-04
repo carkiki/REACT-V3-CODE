@@ -13,6 +13,7 @@ namespace ReactCRM.Models
         public string Phone { get; set; }
         public string Email { get; set; }
         public string Notes { get; set; }
+        public int? TabId { get; set; }
         public Dictionary<string, object> ExtraData { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime LastUpdated { get; set; }

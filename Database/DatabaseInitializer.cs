@@ -368,8 +368,21 @@ namespace ReactCRM.Database
                     FOREIGN KEY (ReplyToMessageId) REFERENCES ChatMessages(Id)
                 );";
 
+            // ClientTabs table (for organizing clients into tabs/groups)
+            string createClientTabsTable = @"
+                CREATE TABLE IF NOT EXISTS ClientTabs (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Name TEXT NOT NULL,
+                    DisplayOrder INTEGER NOT NULL DEFAULT 0,
+                    IsDefault BOOLEAN DEFAULT 0,
+                    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    CreatedBy INTEGER,
+                    FOREIGN KEY (CreatedBy) REFERENCES Workers(Id)
+                );";
+
             // Execute all CREATE TABLE statements
             ExecuteNonQuery(connection, createWorkersTable);
+            ExecuteNonQuery(connection, createClientTabsTable);
             ExecuteNonQuery(connection, createClientsTable);
             ExecuteNonQuery(connection, createCustomFieldsTable);
             ExecuteNonQuery(connection, createAuditLogTable);
@@ -387,6 +400,7 @@ namespace ReactCRM.Database
             // Create indices for better performance
             CreateIndices(connection);
             AddUploadLinkColumns(connection);
+            InitializeDefaultTab(connection);
         }
 
         private static void CreateIndices(SqliteConnection connection)
@@ -415,7 +429,9 @@ namespace ReactCRM.Database
                 "CREATE INDEX IF NOT EXISTS idx_chatmessages_channel ON ChatMessages(Channel);",
                 "CREATE INDEX IF NOT EXISTS idx_chatmessages_sender ON ChatMessages(SenderId);",
                 "CREATE INDEX IF NOT EXISTS idx_chatmessages_date ON ChatMessages(SentDate DESC);",
-                "CREATE INDEX IF NOT EXISTS idx_chatmessages_entity ON ChatMessages(RelatedEntityType, RelatedEntityId);"
+                "CREATE INDEX IF NOT EXISTS idx_chatmessages_entity ON ChatMessages(RelatedEntityType, RelatedEntityId);",
+                "CREATE INDEX IF NOT EXISTS idx_clients_tabid ON Clients(TabId);",
+                "CREATE INDEX IF NOT EXISTS idx_clienttabs_order ON ClientTabs(DisplayOrder);"
             };
 
             foreach (var index in indices)
@@ -590,6 +606,10 @@ namespace ReactCRM.Database
 
                 ("Clients", "Notes", "TEXT"),
 
+                ("Clients", "TabId", "INTEGER"),
+
+                ("Clients", "IsActive", "BOOLEAN DEFAULT 1"),
+
                 ("ClientFiles", "MimeType", "TEXT"),
 
                 ("ClientFiles", "UploadcareUuid", "TEXT"),
@@ -668,6 +688,48 @@ namespace ReactCRM.Database
 
             }
 
+        }
+
+        private static void InitializeDefaultTab(SqliteConnection connection)
+        {
+            try
+            {
+                // Check if default tab exists
+                using var checkCmd = new SqliteCommand(
+                    "SELECT COUNT(*) FROM ClientTabs WHERE IsDefault = 1", connection);
+                int count = Convert.ToInt32(checkCmd.ExecuteScalar());
+
+                if (count == 0)
+                {
+                    // Create default tab
+                    using var insertCmd = new SqliteCommand(@"
+                        INSERT INTO ClientTabs (Name, DisplayOrder, IsDefault, CreatedAt, CreatedBy)
+                        VALUES ('All Clients', 0, 1, @createdAt, 1)", connection);
+                    insertCmd.Parameters.AddWithValue("@createdAt", DateTime.Now);
+                    insertCmd.ExecuteNonQuery();
+
+                    System.Diagnostics.Debug.WriteLine("Default ClientTab 'All Clients' created");
+
+                    // Get the default tab ID
+                    using var getIdCmd = new SqliteCommand(
+                        "SELECT Id FROM ClientTabs WHERE IsDefault = 1 LIMIT 1", connection);
+                    int defaultTabId = Convert.ToInt32(getIdCmd.ExecuteScalar());
+
+                    // Update all existing clients to use the default tab
+                    using var updateCmd = new SqliteCommand(@"
+                        UPDATE Clients
+                        SET TabId = @tabId
+                        WHERE TabId IS NULL", connection);
+                    updateCmd.Parameters.AddWithValue("@tabId", defaultTabId);
+                    int updated = updateCmd.ExecuteNonQuery();
+
+                    System.Diagnostics.Debug.WriteLine($"Updated {updated} clients to default tab");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error initializing default tab: {ex.Message}");
+            }
         }
     }
 }
