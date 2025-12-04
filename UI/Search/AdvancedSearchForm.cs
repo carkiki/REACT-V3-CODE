@@ -151,12 +151,13 @@ namespace ReactCRM.UI.Search
             gridResults = new DataGridView
             {
                 Dock = DockStyle.Fill,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 MultiSelect = false,
                 ReadOnly = true,
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
+                ScrollBars = ScrollBars.Both,
                 BackgroundColor = Color.White,
                 BorderStyle = BorderStyle.None,
                 RowHeadersVisible = false,
@@ -468,18 +469,72 @@ namespace ReactCRM.UI.Search
             gridResults.DataSource = null;
             gridResults.Columns.Clear();
 
-            var displayData = clients.Select(c => new
-            {
-                c.Id,
-                c.SSN,
-                c.Name,
-                DOB = c.DOB?.ToString("yyyy-MM-dd") ?? "",
-                c.Phone,
-                c.Email,
-                CreatedAt = c.CreatedAt.ToString("yyyy-MM-dd HH:mm")
-            }).ToList();
+            // Agregar columnas estándar
+            gridResults.Columns.Add("Id", "ID");
+            gridResults.Columns.Add("SSN", "SSN");
+            gridResults.Columns.Add("Name", "Name");
+            gridResults.Columns.Add("DOB", "Date of Birth");
+            gridResults.Columns.Add("Phone", "Phone");
+            gridResults.Columns.Add("Email", "Email");
+            gridResults.Columns.Add("Notes", "Notes");
 
-            gridResults.DataSource = displayData;
+            // Agregar columnas de custom fields
+            var customFields = customFieldRepository.GetAll() ?? new List<CustomField>();
+            foreach (var field in customFields)
+            {
+                gridResults.Columns.Add(field.FieldName, field.Label);
+            }
+
+            gridResults.Columns.Add("CreatedAt", "Created At");
+            gridResults.Columns.Add("LastUpdated", "Last Updated");
+
+            // Llenar datos
+            foreach (var client in clients)
+            {
+                var row = new List<object>
+                {
+                    client.Id,
+                    client.SSN ?? "",
+                    client.Name ?? "",
+                    client.DOB?.ToString("yyyy-MM-dd") ?? "",
+                    client.Phone ?? "",
+                    client.Email ?? "",
+                    client.Notes ?? ""
+                };
+
+                // Agregar valores de custom fields
+                foreach (var field in customFields)
+                {
+                    var value = client.GetExtraDataValue(field.FieldName) ?? "";
+                    row.Add(value);
+                }
+
+                row.Add(client.CreatedAt.ToString("yyyy-MM-dd HH:mm"));
+                row.Add(client.LastUpdated.ToString("yyyy-MM-dd HH:mm"));
+
+                gridResults.Rows.Add(row.ToArray());
+            }
+
+            // Configurar anchos de columnas
+            gridResults.Columns["Id"].Width = 50;
+            gridResults.Columns["SSN"].Width = 120;
+            gridResults.Columns["Name"].Width = 150;
+            gridResults.Columns["DOB"].Width = 100;
+            gridResults.Columns["Phone"].Width = 120;
+            gridResults.Columns["Email"].Width = 180;
+            gridResults.Columns["Notes"].Width = 200;
+
+            foreach (var field in customFields)
+            {
+                if (gridResults.Columns.Contains(field.FieldName))
+                {
+                    gridResults.Columns[field.FieldName].Width = 150;
+                }
+            }
+
+            gridResults.Columns["CreatedAt"].Width = 140;
+            gridResults.Columns["LastUpdated"].Width = 140;
+
             lblResultCount.Text = $"Found {clients.Count} client(s)";
             btnExport.Enabled = clients.Count > 0;
         }

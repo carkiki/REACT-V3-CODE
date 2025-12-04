@@ -3,9 +3,6 @@ using System.Drawing;
 using System.Windows.Forms;
 using ReactCRM.Database;
 using ReactCRM.Models;
-
-using ReactCRM.Plugins;
-
 using ReactCRM.Services;
 
 using ReactCRM.UI.Charts;
@@ -88,7 +85,6 @@ namespace ReactCRM.UI.Dashboard
             { "Backup", "💾" },
             { "Manage Workers", "👷" },
             { "PDF Templates", "📄" },
-            { "Plugins", "🔌" },
             { "Dashboard", "🏠" }
         };
 
@@ -103,13 +99,6 @@ namespace ReactCRM.UI.Dashboard
 
             // Ensure Export CSV menu item exists for all users
             MenuConfigService.Instance.EnsureMenuItemExists("Export CSV", 4);
-
-            // Ensure Plugins menu item exists for all users
-
-            MenuConfigService.Instance.EnsureMenuItemExists("Plugins", 10);
-
-            // Load plugins from /plugins/ directory with auto-start enabled
-            PluginManager.Instance.LoadPlugins(executeAutoStart: true);
 
             // DIAGNOSTIC: Show what menu items are loaded
             var menuItems = MenuConfigService.Instance.GetAllMenuItems();
@@ -1109,9 +1098,6 @@ namespace ReactCRM.UI.Dashboard
             menuConfig.SetMenuItemVisibility("Export CSV", auth.CanEditClients());
             menuConfig.SetMenuItemVisibility("Import Database", auth.CanImportData());
             menuConfig.SetMenuItemVisibility("Custom Fields", auth.CanEditClients());
-            // Plugins available to all users
-
-            menuConfig.SetMenuItemVisibility("Plugins", true);
 
             // Reload menu with updated permissions
             RefreshMenuUI();
@@ -1247,12 +1233,6 @@ namespace ReactCRM.UI.Dashboard
             form.ShowDialog();
         }
 
-        private void OpenPluginsForm()
-        {
-            var form = new PluginManagementForm();
-            form.ShowDialog();
-        }
-
         private void CreateBackup()
         {
             if (!AuthService.Instance.CanCreateBackups())
@@ -1340,9 +1320,6 @@ namespace ReactCRM.UI.Dashboard
                     break;
                 case "PDF Templates":
                     OpenPdfTemplatesForm();
-                    break;
-                case "Plugins":
-                    OpenPluginsForm();
                     break;
                 default:
                     break;
@@ -1481,9 +1458,6 @@ namespace ReactCRM.UI.Dashboard
             refreshTimer?.Dispose();
             sidebarAnimationTimer?.Stop();
             sidebarAnimationTimer?.Dispose();
-
-            // Cleanup plugins
-            PluginManager.Instance.CleanupPlugins();
         }
     }
 }
