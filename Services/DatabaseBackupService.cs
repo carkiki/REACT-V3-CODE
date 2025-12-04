@@ -104,10 +104,31 @@ namespace ReactCRM.Services
                 string backupFileName = $"crm_backup_{backupType}_{timestamp}.db";
                 string backupPath = Path.Combine(BACKUPS_FOLDER, backupFileName);
 
-                // Copy database file to backup
-                File.Copy(DATABASE_FILE, backupPath, true);
+                // Retry logic for file copy (in case DB is still being accessed)
+                int retries = 3;
+                bool copied = false;
 
-                System.Diagnostics.Debug.WriteLine($"Database backup created: {backupFileName}");
+                for (int i = 0; i < retries && !copied; i++)
+                {
+                    try
+                    {
+                        // Copy database file to backup
+                        File.Copy(DATABASE_FILE, backupPath, true);
+                        copied = true;
+                        System.Diagnostics.Debug.WriteLine($"Database backup created: {backupFileName}");
+                    }
+                    catch (IOException ioEx) when (i < retries - 1)
+                    {
+                        // File is in use, wait and retry
+                        System.Diagnostics.Debug.WriteLine($"Backup attempt {i + 1} failed, retrying... ({ioEx.Message})");
+                        System.Threading.Thread.Sleep(1000); // Wait 1 second before retry
+                    }
+                }
+
+                if (!copied)
+                {
+                    throw new IOException("Failed to create backup after multiple attempts - file may be in use");
+                }
 
                 // Clean up old backups
                 CleanupOldBackups();

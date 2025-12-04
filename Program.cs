@@ -29,6 +29,9 @@ namespace ReactCRM
                 {
                     DatabaseInitializer.Initialize();
                     logger.LogInfo("Database initialized successfully", "Program.Main");
+
+                    // Small delay to ensure all SQLite handles are released
+                    System.Threading.Thread.Sleep(500);
                 }
                 catch (Exception dbEx)
                 {
